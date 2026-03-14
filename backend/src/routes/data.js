@@ -30,12 +30,13 @@ inventoryRouter.get('/', requireAuth, (req, res) => {
   const enriched = items.map(item => {
     const rs = db.prepare('SELECT SUM(quantity) as sold_30d, SUM(total_price) as revenue_30d FROM sales WHERE user_id = ? AND (sku = ? OR item_id = ?) AND sale_date >= ?')
       .get(user.id, item.sku || '', item.item_id, since30);
+    const itemMarkup = 1 + ((item.rate_markup || 0) / 100)
     return {
       ...item,
       currency: user.default_currency || item.currency,
-      display_price: item.price ? item.price * markup : null,
+      display_price: item.price ? item.price * itemMarkup : null,
       sold_30d: rs?.sold_30d || 0,
-      revenue_30d: rs?.revenue_30d ? rs.revenue_30d * markup : 0,
+      revenue_30d: rs?.revenue_30d ? rs.revenue_30d * itemMarkup : 0,
     };
   });
 
@@ -51,9 +52,9 @@ inventoryRouter.get('/:id', requireAuth, (req, res) => {
 });
 
 inventoryRouter.patch('/:id', requireAuth, (req, res) => {
-  const { notes, tags, cost_price, quantity_available, custom_label } = req.body;
-  db.prepare(`UPDATE tracked_items SET notes=COALESCE(?,notes), tags=COALESCE(?,tags), cost_price=COALESCE(?,cost_price), quantity_available=COALESCE(?,quantity_available), custom_label=COALESCE(?,custom_label), updated_at=strftime('%s','now') WHERE id=? AND user_id=?`)
-    .run(notes, tags, cost_price != null ? parseFloat(cost_price) : null, quantity_available != null ? parseInt(quantity_available) : null, custom_label, req.params.id, req.user.id);
+  const { notes, tags, cost_price, quantity_available, custom_label, rate_markup, shipping_cost } = req.body;
+  db.prepare(`UPDATE tracked_items SET notes=COALESCE(?,notes), tags=COALESCE(?,tags), cost_price=COALESCE(?,cost_price), quantity_available=COALESCE(?,quantity_available), custom_label=COALESCE(?,custom_label), rate_markup=COALESCE(?,rate_markup), shipping_cost=COALESCE(?,shipping_cost), updated_at=strftime('%s','now') WHERE id=? AND user_id=?`)
+    .run(notes, tags, cost_price != null ? parseFloat(cost_price) : null, quantity_available != null ? parseInt(quantity_available) : null, custom_label, rate_markup != null ? parseFloat(rate_markup) : null, shipping_cost != null ? parseFloat(shipping_cost) : null, req.params.id, req.user.id);
   res.json({ success: true });
 });
 

@@ -33,13 +33,13 @@ const upload = multer({
 
 // Get own profile
 router.get('/me', requireAuth, (req, res) => {
-  const user = db.prepare('SELECT id, username, email, role, status, avatar_url, default_currency, rate_markup, default_shipping, ebay_username, ebay_user_id, last_login, created_at FROM users WHERE id = ?').get(req.user.id);
+  const user = db.prepare('SELECT id, username, email, full_name, role, status, avatar_url, default_currency, rate_markup, default_shipping, ebay_username, ebay_user_id, last_login, created_at FROM users WHERE id = ?').get(req.user.id);
   res.json({ user });
 });
 
 // Update profile
 router.patch('/me', requireAuth, async (req, res) => {
-  const { username, email, default_currency, rate_markup, default_shipping } = req.body;
+  const { username, email, full_name, default_currency, rate_markup, default_shipping } = req.body;
 
   if (username) {
     const existing = db.prepare('SELECT id FROM users WHERE username = ? AND id != ?').get(username, req.user.id);
@@ -53,17 +53,13 @@ router.patch('/me', requireAuth, async (req, res) => {
   db.prepare(`UPDATE users SET
     username = COALESCE(?, username),
     email = COALESCE(?, email),
+    full_name = COALESCE(?, full_name),
     default_currency = COALESCE(?, default_currency),
-    rate_markup = COALESCE(?, rate_markup),
-    default_shipping = COALESCE(?, default_shipping),
     updated_at = strftime('%s','now')
     WHERE id = ?
-  `).run(username || null, email || null, default_currency || null,
-    rate_markup != null ? parseFloat(rate_markup) : null,
-    default_shipping != null ? parseFloat(default_shipping) : null,
-    req.user.id);
+  `).run(username || null, email || null, full_name || null, default_currency || null, req.user.id);
 
-  const updated = db.prepare('SELECT id, username, email, role, avatar_url, default_currency, rate_markup, default_shipping, ebay_username FROM users WHERE id = ?').get(req.user.id);
+  const updated = db.prepare('SELECT id, username, email, full_name, role, avatar_url, default_currency, ebay_username FROM users WHERE id = ?').get(req.user.id);
   res.json({ success: true, user: updated });
 });
 

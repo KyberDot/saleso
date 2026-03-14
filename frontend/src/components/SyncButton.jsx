@@ -1,10 +1,15 @@
 import { useState } from 'react'
 import api from '../utils/api'
 import { useToast } from '../context/ToastContext'
+import { useSite } from '../context/SiteContext'
+import { API_BASE } from '../utils/api'
 
 export default function SyncButton({ onSync }) {
   const [syncing, setSyncing] = useState(false)
   const { toast } = useToast()
+  const { settings } = useSite()
+
+  const ebayLogoUrl = settings.ebay_sync_logo ? `${API_BASE}${settings.ebay_sync_logo}` : null
 
   const handleSync = async () => {
     setSyncing(true)
@@ -27,8 +32,32 @@ export default function SyncButton({ onSync }) {
   }
 
   return (
-    <button className="btn btn-secondary" onClick={handleSync} disabled={syncing}>
-      {syncing ? <><span className="spinner" style={{ width: 14, height: 14 }} />Syncing…</> : <><span>🔄</span>Sync eBay</>}
+    <button
+      className="btn btn-secondary"
+      onClick={handleSync}
+      disabled={syncing}
+      style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+    >
+      {syncing ? (
+        <>
+          <span className="spinner" style={{ width: 14, height: 14 }} />
+          Syncing…
+        </>
+      ) : ebayLogoUrl ? (
+        <>
+          <img
+            src={ebayLogoUrl}
+            alt="Sync"
+            style={{ height: 18, width: 'auto', objectFit: 'contain' }}
+          />
+          Sync
+        </>
+      ) : (
+        <>
+          <span>🔄</span>
+          Sync eBay
+        </>
+      )}
     </button>
   )
 }

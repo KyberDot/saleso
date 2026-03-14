@@ -263,7 +263,7 @@ export function InventoryPage() {
   }
 
   const saveEdit = async () => {
-    await api.patch(`/api/inventory/${edit.id}`, { notes: edit.notes, tags: edit.tags, cost_price: edit.cost_price ? parseFloat(edit.cost_price) : undefined, quantity_available: edit.quantity_available != null ? parseInt(edit.quantity_available) : undefined, custom_label: edit.custom_label })
+    await api.patch(`/api/inventory/${edit.id}`, { notes: edit.notes, tags: edit.tags, cost_price: edit.cost_price ? parseFloat(edit.cost_price) : undefined, quantity_available: edit.quantity_available != null ? parseInt(edit.quantity_available) : undefined, custom_label: edit.custom_label, rate_markup: edit.rate_markup != null ? parseFloat(edit.rate_markup) : undefined, shipping_cost: edit.shipping_cost != null ? parseFloat(edit.shipping_cost) : undefined })
     toast('Saved', 'success'); setEdit(null); setSelected(null); load(search)
   }
 
@@ -344,7 +344,7 @@ export function InventoryPage() {
             <div className="modal-body">
               {edit ? (
                 <>
-                  {[{ label: 'Custom Label / Code', key: 'custom_label' }, { label: 'Cost Price', key: 'cost_price', type: 'number' }, { label: 'Stock Qty', key: 'quantity_available', type: 'number' }, { label: 'Tags (comma separated)', key: 'tags' }].map(f => (
+                  {[{ label: 'Custom Label / Code', key: 'custom_label' }, { label: 'Cost Price', key: 'cost_price', type: 'number' }, { label: 'Stock Qty', key: 'quantity_available', type: 'number' }, { label: 'Rate Markup %', key: 'rate_markup', type: 'number' }, { label: 'Shipping Cost', key: 'shipping_cost', type: 'number' }, { label: 'Tags (comma separated)', key: 'tags' }].map(f => (
                     <div key={f.key} className="form-group">
                       <label>{f.label}</label>
                       <input type={f.type || 'text'} value={edit[f.key] || ''} onChange={e => setEdit(x => ({ ...x, [f.key]: e.target.value }))} />
@@ -358,7 +358,7 @@ export function InventoryPage() {
                 </>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  {[['SKU', selected.sku], ['Custom Label', selected.custom_label], ['Price', selected.display_price ? formatCurrency(selected.display_price, currency) : formatCurrency(selected.price, currency)], ['Cost', selected.cost_price ? formatCurrency(selected.cost_price, currency) : '—'], ['Stock', selected.quantity_available], ['Sold 30d', selected.sold_30d], ['Condition', selected.condition], ['Tags', selected.tags], ['Notes', selected.notes]].filter(([,v]) => v != null && v !== '').map(([k,v]) => (
+                  {[['SKU', selected.sku], ['Custom Label', selected.custom_label], ['Price', selected.display_price ? formatCurrency(selected.display_price, currency) : formatCurrency(selected.price, currency)], ['Cost', selected.cost_price ? formatCurrency(selected.cost_price, currency) : '—'], ['Rate Markup', selected.rate_markup > 0 ? selected.rate_markup + '%' : null], ['Shipping Cost', selected.shipping_cost > 0 ? formatCurrency(selected.shipping_cost, currency) : null], ['Stock', selected.quantity_available], ['Sold 30d', selected.sold_30d], ['Condition', selected.condition], ['Tags', selected.tags], ['Notes', selected.notes]].filter(([,v]) => v != null && v !== '').map(([k,v]) => (
                     <div key={k} style={{ background: 'var(--bg-card2)', borderRadius: 8, padding: '10px 12px' }}>
                       <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginBottom: 4 }}>{k.toUpperCase()}</div>
                       <div style={{ fontSize: 13 }}>{String(v)}</div>

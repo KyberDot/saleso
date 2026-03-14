@@ -245,8 +245,10 @@ function InvitesTab({ toast }) {
 function AppearanceTab({ toast, loadSettings }) {
   const [settings, setSettings] = useState({})
   const [saving, setSaving] = useState(false)
-  const [uploadingLogo, setUploadingLogo] = useState(false)
-  const logoRef = useRef()
+  const [uploadingLogo, setUploadingLogo] = useState({ dark: false, light: false, ebay: false })
+  const darkLogoRef = useRef()
+  const lightLogoRef = useRef()
+  const ebayLogoRef = useRef()
 
   useEffect(() => {
     api.get('/api/admin/settings').then(r => setSettings(r.data.settings || {})).catch(() => {})
@@ -262,74 +264,173 @@ function AppearanceTab({ toast, loadSettings }) {
     finally { setSaving(false) }
   }
 
-  const uploadLogo = async (e) => {
+  const uploadLogo = async (e, variant) => {
     const file = e.target.files?.[0]; if (!file) return
-    setUploadingLogo(true)
+    setUploadingLogo(x => ({ ...x, [variant]: true }))
     const form = new FormData(); form.append('logo', file)
     try {
-      const r = await api.post('/api/admin/settings/logo', form, { headers: { 'Content-Type': 'multipart/form-data' } })
-      setSettings(x => ({ ...x, site_logo: r.data.logo_url }))
-      await loadSettings()
-      toast('Logo uploaded', 'success')
+      if (variant === 'ebay') {
+        const r = await api.post('/api/admin/settings/ebay-logo', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+        setSettings(x => ({ ...x, ebay_sync_logo: r.data.logo_url }))
+        await loadSettings()
+        toast('eBay sync logo uploaded', 'success')
+      } else {
+        const r = await api.post(`/api/admin/settings/logo/${variant}`, form, { headers: { 'Content-Type': 'multipart/form-data' } })
+        const key = variant === 'light' ? 'site_logo_light' : 'site_logo_dark'
+        setSettings(x => ({ ...x, [key]: r.data.logo_url, site_logo: variant === 'dark' ? r.data.logo_url : x.site_logo }))
+        await loadSettings()
+        toast(`${variant === 'dark' ? 'Dark' : 'Light'} logo uploaded`, 'success')
+      }
     } catch { toast('Upload failed', 'error') }
-    finally { setUploadingLogo(false) }
+    finally { setUploadingLogo(x => ({ ...x, [variant]: false })) }
   }
 
-  const removeLogo = async () => {
-    await api.delete('/api/admin/settings/logo')
-    setSettings(x => ({ ...x, site_logo: '' }))
+  const removeLogo = async (variant) => {
+    if (variant === 'ebay') {
+      await api.delete('/api/admin/settings/ebay-logo')
+      setSettings(x => ({ ...x, ebay_sync_logo: '' }))
+    } else {
+      await api.delete(`/api/admin/settings/logo/${variant}`)
+      const key = variant === 'light' ? 'site_logo_light' : 'site_logo_dark'
+      setSettings(x => ({ ...x, [key]: '' }))
+    }
     await loadSettings()
     toast('Logo removed', 'success')
   }
 
   const colorFields = [
     { key: 'primary_color', label: 'Primary / Accent Color', hint: 'Main brand color, buttons, highlights' },
-    { key: 'background_color', label: 'Background Color', hint: 'Main page background' },
-    { key: 'card_color', label: 'Card / Panel Color', hint: 'Cards and sidebar background' },
-    { key: 'text_color', label: 'Text Color', hint: 'Primary text color' },
+    { key: 'background_color', label: 'Background Color', hint: 'Main page background (dark mode)' },
+    { key: 'card_color', label: 'Card / Panel Color', hint: 'Cards and sidebar background (dark mode)' },
+    { key: 'text_color', label: 'Text Color', hint: 'Primary text color (dark mode)' },
     { key: 'accent_color', label: 'Success / Green Color', hint: 'Positive metrics and badges' },
+    { key: 'username_color', label: 'Username Color', hint: 'Color of usernames in sidebar and UI' },
   ]
+
+  const LogoSlot = ({ variant, label, hint, bgColor, logoRef }) => {
+    const key = variant === 'light' ? 'site_logo_light' : variant === 'ebay' ? 'ebay_sync_logo' : 'site_logo_dark'
+    const logoUrl = settings[key] ? `${API_BASE}${settings[key]}` : null
+    const uploading = uploadingLogo[variant]
+
+    return (
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 700, marginBottom: 8 }}>
+          {label.toUpperCase()}
+        </div>
+        <div style={{ height: variant === 'ebay' ? 40 : 80, background: bgColor, borderRadius: 10, border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: 10, padding: 8 }}>
+          {logoUrl ? (
+            <img src={logoUrl} alt={label} style={{
+              maxWidth: variant === 'ebay' ? '120px' : (settings.logo_width || '200') + 'px',
+              maxHeight: variant === 'ebay' ? '28px' : (settings.logo_height || '60') + 'px',
+              objectFit: 'contain'
+            }} />
+          ) : (
+            <span style={{ fontSize: 11, color: variant === 'light' ? '#999' : 'var(--text-muted)' }}>No logo</span>
+          )}
+        </div>
+        <input type="file" ref={logoRef} onChange={e => uploadLogo(e, variant)} accept="image/*" style={{ display: 'none' }} />
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button className="btn btn-secondary btn-sm" onClick={() => logoRef.current?.click()} disabled={uploading} style={{ flex: 1 }}>
+            {uploading ? 'Uploading…' : 'Upload'}
+          </button>
+          {logoUrl && <button className="btn btn-danger btn-sm" onClick={() => removeLogo(variant)}>✕</button>}
+        </div>
+        <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 6 }}>{hint}</p>
+      </div>
+    )
+  }
+
+  const Toggle = ({ settingKey, label, hint }) => (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
+      <div>
+        <div style={{ fontSize: 13, fontWeight: 500 }}>{label}</div>
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{hint}</div>
+      </div>
+      <button
+        onClick={() => setSettings(x => ({ ...x, [settingKey]: x[settingKey] === 'false' ? 'true' : 'false' }))}
+        style={{
+          width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', position: 'relative', flexShrink: 0,
+          background: settings[settingKey] !== 'false' ? 'var(--accent)' : 'var(--border-light)',
+          transition: 'background 0.2s'
+        }}
+      >
+        <div style={{
+          width: 18, height: 18, borderRadius: '50%', background: '#fff',
+          position: 'absolute', top: 3,
+          left: settings[settingKey] !== 'false' ? 23 : 3,
+          transition: 'left 0.2s'
+        }} />
+      </button>
+    </div>
+  )
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+      {/* Branding */}
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         <h3 style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>BRANDING</h3>
 
-        {/* Site name */}
         <div className="form-group">
           <label>Site Name</label>
           <input value={settings.site_name || ''} onChange={e => setSettings(x => ({ ...x, site_name: e.target.value }))} placeholder="SalesO" />
         </div>
 
-        {/* Logo */}
+        {/* Site logos */}
         <div>
-          <label>Logo</label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 8 }}>
-            <div style={{ width: 160, height: 60, background: 'var(--bg-card2)', borderRadius: 8, border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-              {settings.site_logo ? (
-                <img src={`${API_BASE}${settings.site_logo}`} alt="Logo" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-              ) : <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>No logo</span>}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <input type="file" ref={logoRef} onChange={uploadLogo} accept="image/*" style={{ display: 'none' }} />
-              <button className="btn btn-secondary btn-sm" onClick={() => logoRef.current?.click()} disabled={uploadingLogo}>
-                {uploadingLogo ? 'Uploading…' : 'Upload Logo'}
-              </button>
-              {settings.site_logo && <button className="btn btn-danger btn-sm" onClick={removeLogo}>Remove</button>}
-              <p style={{ fontSize: 10, color: 'var(--text-muted)' }}>Recommended: transparent PNG, max 200px height</p>
-            </div>
+          <label>Site Logos</label>
+          <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
+            <LogoSlot variant="dark" label="Dark Mode Logo" hint="Shown on dark backgrounds" bgColor="var(--bg-card2)" logoRef={darkLogoRef} />
+            <LogoSlot variant="light" label="Light Mode Logo" hint="Shown on light backgrounds" bgColor="#f0f0f0" logoRef={lightLogoRef} />
           </div>
+        </div>
+
+        {/* Logo size */}
+        <div className="form-row">
+          <div className="form-group">
+            <label>Logo Max Width (px)</label>
+            <input type="number" value={settings.logo_width || '200'} onChange={e => setSettings(x => ({ ...x, logo_width: e.target.value }))} min="50" max="400" />
+          </div>
+          <div className="form-group">
+            <label>Logo Max Height (px)</label>
+            <input type="number" value={settings.logo_height || '60'} onChange={e => setSettings(x => ({ ...x, logo_height: e.target.value }))} min="20" max="200" />
+          </div>
+        </div>
+
+        {/* eBay sync button logo */}
+        <div>
+          <label>eBay Sync Button Logo</label>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>Replaces the "Sync eBay" text with your logo on the sync button. Recommended: eBay logo, transparent PNG, ~28px height.</p>
+          <div style={{ maxWidth: 200 }}>
+            <LogoSlot variant="ebay" label="Sync Button Logo" hint="Shows inside the Sync button" bgColor="var(--bg-card2)" logoRef={ebayLogoRef} />
+          </div>
+        </div>
+
+        <button className="btn btn-secondary btn-sm" onClick={save} disabled={saving} style={{ alignSelf: 'flex-start' }}>
+          {saving ? 'Saving…' : 'Save Branding'}
+        </button>
+      </div>
+
+      {/* Display options */}
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <h3 style={{ fontFamily: 'var(--font-mono)', fontSize: 12, marginBottom: 8 }}>DISPLAY OPTIONS</h3>
+        <Toggle settingKey="sidebar_show_text" label="Show site name in sidebar" hint="Show text name next to logo in the left sidebar" />
+        <Toggle settingKey="login_show_text" label="Show site name on login page" hint="Show site name and tagline on the login screen" />
+        <div style={{ marginTop: 12 }}>
+          <button className="btn btn-primary btn-sm" onClick={save} disabled={saving} style={{ alignSelf: 'flex-start' }}>
+            {saving ? 'Saving…' : 'Save Display Options'}
+          </button>
         </div>
       </div>
 
-      {/* Colors */}
+      {/* Theme colors */}
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <h3 style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>THEME COLORS</h3>
-        <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Changes apply globally for all users instantly.</p>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Changes apply globally for all users instantly. Background and card colors apply to dark mode.</p>
         {colorFields.map(f => (
           <div key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <input type="color" value={settings[f.key] || '#000000'} onChange={e => setSettings(x => ({ ...x, [f.key]: e.target.value }))} style={{ width: 48, height: 40, padding: 2, flexShrink: 0 }} />
-            <div>
+            <input type="color" value={settings[f.key] || '#000000'} onChange={e => setSettings(x => ({ ...x, [f.key]: e.target.value }))} style={{ width: 48, height: 40, padding: 2, flexShrink: 0, cursor: 'pointer' }} />
+            <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 500 }}>{f.label}</div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{f.hint}</div>
             </div>
@@ -341,7 +442,9 @@ function AppearanceTab({ toast, loadSettings }) {
           <button className="btn btn-primary" onClick={save} disabled={saving}>
             {saving ? <><span className="spinner" style={{ width: 14, height: 14 }} />Saving…</> : 'Save & Apply'}
           </button>
-          <button className="btn btn-ghost btn-sm" onClick={() => setSettings(x => ({ ...x, primary_color: '#e6a817', background_color: '#0a0a0f', card_color: '#111118', text_color: '#e8e8f0', accent_color: '#22c55e' }))}>Reset Defaults</button>
+          <button className="btn btn-ghost btn-sm" onClick={() => setSettings(x => ({ ...x, primary_color: '#e6a817', background_color: '#0a0a0f', card_color: '#111118', text_color: '#e8e8f0', accent_color: '#22c55e', username_color: '#e6a817' }))}>
+            Reset Defaults
+          </button>
         </div>
       </div>
     </div>

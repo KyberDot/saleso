@@ -14,7 +14,7 @@ const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { e
 // Auth status
 router.get('/status', (req, res) => {
   if (!req.session.userId) return res.json({ authenticated: false });
-  const user = db.prepare('SELECT id, username, email, role, status, avatar_url, default_currency, rate_markup, default_shipping, ebay_username, ebay_user_id, created_at FROM users WHERE id = ? AND status = ?').get(req.session.userId, 'active');
+  const user = db.prepare('SELECT id, username, email, full_name, role, status, avatar_url, default_currency, ebay_username, ebay_user_id, created_at FROM users WHERE id = ? AND status = ?').get(req.session.userId, 'active');
   if (!user) return res.json({ authenticated: false });
   res.json({ authenticated: true, user });
 });
@@ -42,7 +42,7 @@ router.post('/login', loginLimiter, async (req, res) => {
 
 // Register via invite token
 router.post('/register', async (req, res) => {
-  const { token, username, password } = req.body;
+  const { token, username, password, full_name } = req.body;
   if (!token || !username || !password) return res.status(400).json({ error: 'Token, username and password required' });
   if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
 
@@ -58,8 +58,8 @@ router.post('/register', async (req, res) => {
 
   const hash = await bcrypt.hash(password, 12);
   const userId = uuidv4();
-  db.prepare(`INSERT INTO users (id, username, email, password_hash, role, status, invited_by) VALUES (?, ?, ?, ?, 'user', 'active', ?)`)
-    .run(userId, username, invite.email, hash, invite.invited_by);
+  db.prepare(`INSERT INTO users (id, username, email, password_hash, full_name, role, status, invited_by) VALUES (?, ?, ?, ?, ?, 'user', 'active', ?)`)
+    .run(userId, username, invite.email, hash, full_name || username, invite.invited_by);
   db.prepare(`UPDATE invitations SET status = ?, used_at = strftime('%s', 'now') WHERE id = ?`).run('used', invite.id);
 
   req.session.userId = userId;

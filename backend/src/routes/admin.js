@@ -20,10 +20,11 @@ const logoStorage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `logo${ext}`);
+    const variant = req.params.variant || 'dark';
+    cb(null, `logo-${variant}${ext}`);
   }
 });
-const logoUpload = multer({ storage: logoStorage, limits: { fileSize: 2 * 1024 * 1024 } });
+const logoUpload = multer({ storage: logoStorage, limits: { fileSize: 5 * 1024 * 1024 } });
 
 // ── Users ──────────────────────────────────────────
 
@@ -138,7 +139,9 @@ router.patch('/settings', requireAdmin, (req, res) => {
     'site_name', 'primary_color', 'secondary_color', 'accent_color',
     'background_color', 'card_color', 'text_color',
     'allow_registration', 'require_invite',
-    'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from', 'smtp_secure'
+    'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from', 'smtp_secure',
+    'logo_width', 'logo_height', 'username_color',
+    'sidebar_show_text', 'login_show_text', 'dark_mode_default'
   ];
 
   const update = db.prepare(`INSERT OR REPLACE INTO site_settings (key, value, updated_at) VALUES (?, ?, strftime('%s', 'now'))`);
@@ -150,17 +153,54 @@ router.patch('/settings', requireAdmin, (req, res) => {
   res.json({ success: true });
 });
 
-// Upload logo
-router.post('/settings/logo', requireAdmin, logoUpload.single('logo'), (req, res) => {
+// Upload logo (variant = dark or light)
+router.post('/settings/logo/:variant', requireAdmin, logoUpload.single('logo'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  const variant = req.params.variant === 'light' ? 'light' : 'dark';
+  const logoUrl = `/uploads/logo/${req.file.filename}`;
+  const key = variant === 'light' ? 'site_logo_light' : 'site_logo_dark';
+  db.prepare('INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)').run(key, logoUrl);
+  // Keep site_logo as the dark version for backwards compat
+  if (variant === 'dark') {
+    db.prepare('INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)').run('site_logo', logoUrl);
+  }
+  res.json({ success: true, logo_url: logoUrl, variant });
+});
+
+// Upload eBay sync logo
+const ebayLogoStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(UPLOADS_DIR, 'logo');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `ebay-sync${ext}`);
+  }
+});
+const ebayLogoUpload = multer({ storage: ebayLogoStorage, limits: { fileSize: 2 * 1024 * 1024 } });
+
+router.post('/settings/ebay-logo', requireAdmin, ebayLogoUpload.single('logo'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   const logoUrl = `/uploads/logo/${req.file.filename}`;
-  db.prepare('INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)').run('site_logo', logoUrl);
+  db.prepare('INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)').run('ebay_sync_logo', logoUrl);
   res.json({ success: true, logo_url: logoUrl });
 });
 
+router.delete('/settings/ebay-logo', requireAdmin, (req, res) => {
+  db.prepare('INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)').run('ebay_sync_logo', '');
+  res.json({ success: true });
+});
+
 // Delete logo
-router.delete('/settings/logo', requireAdmin, (req, res) => {
-  db.prepare('INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)').run('site_logo', '');
+router.delete('/settings/logo/:variant', requireAdmin, (req, res) => {
+  const variant = req.params.variant === 'light' ? 'light' : 'dark';
+  const key = variant === 'light' ? 'site_logo_light' : 'site_logo_dark';
+  db.prepare('INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)').run(key, '');
+  if (variant === 'dark') {
+    db.prepare('INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)').run('site_logo', '');
+  }
   res.json({ success: true });
 });
 

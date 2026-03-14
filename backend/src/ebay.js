@@ -34,7 +34,7 @@ function getAuthUrl(state) {
 async function exchangeCodeForToken(code) {
   const credentials = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64');
   const response = await axios.post(
-    `${EBAY_AUTH_BASE}/identity/v1/oauth2/token`,
+    `${EBAY_API_BASE}/identity/v1/oauth2/token`,
     new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: REDIRECT_URI }).toString(),
     { headers: { 'Authorization': `Basic ${credentials}`, 'Content-Type': 'application/x-www-form-urlencoded' } }
   );
@@ -44,7 +44,7 @@ async function exchangeCodeForToken(code) {
 async function refreshAccessToken(refreshToken) {
   const credentials = Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64');
   const response = await axios.post(
-    `${EBAY_AUTH_BASE}/identity/v1/oauth2/token`,
+    `${EBAY_API_BASE}/identity/v1/oauth2/token`,
     new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken, scope: SCOPES }).toString(),
     { headers: { 'Authorization': `Basic ${credentials}`, 'Content-Type': 'application/x-www-form-urlencoded' } }
   );

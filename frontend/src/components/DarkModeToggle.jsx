@@ -5,34 +5,33 @@ export default function DarkModeToggle() {
 
   return (
     <button
+      data-dark-toggle
       onClick={toggleDarkMode}
       title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
       style={{
         position: 'fixed',
-        bottom: 24,
-        right: 20,
-        width: 36,
-        height: 36,
+        bottom: 22,
+        right: 18,
+        width: 34,
+        height: 34,
         borderRadius: '50%',
-        background: 'var(--bg-card)',
+        background: 'var(--bg-card2)',
         border: '1px solid var(--border-light)',
         cursor: 'pointer',
-        fontSize: 17,
-        lineHeight: 1,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 200,
-        boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.35)',
         transition: 'transform 0.15s, box-shadow 0.15s',
         padding: 0,
+        lineHeight: 1,
+        fontSize: 16,
       }}
-      onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.1)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.4)' }}
-      onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.3)' }}
+      onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.1)'; e.currentTarget.style.boxShadow = '0 4px 14px rgba(0,0,0,0.45)' }}
+      onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,0,0,0.35)' }}
     >
-      <span style={{ display: 'block', lineHeight: 1, marginTop: 0 }}>
-        {darkMode ? '☀️' : '🌙'}
-      </span>
+      {darkMode ? '☀️' : '🌙'}
     </button>
   )
 }

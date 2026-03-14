@@ -101,8 +101,8 @@ router.post('/sync', requireAuth, requireEbay, async (req, res) => {
 
     let synced = 0;
     const insert = db.prepare(`INSERT OR REPLACE INTO sales
-      (id,user_id,order_id,item_id,item_title,sku,custom_label,quantity,sale_price,total_price,currency,buyer_username,sale_date,payment_status,shipping_status,tracking_number,buyer_country,ebay_fees,postage_cost,net_profit,order_line_item_id)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+      (id,user_id,order_id,item_id,item_title,sku,custom_label,quantity,sale_price,total_price,currency,buyer_username,sale_date,payment_status,shipping_status,tracking_number,buyer_country,ebay_fees,postage_cost,ad_rate_cost,item_cost,net_profit,order_line_item_id)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`);
 
     for (const order of allOrders) {
       for (const item of (order.lineItems || [])) {
@@ -130,7 +130,7 @@ router.post('/sync', requireAuth, requireEbay, async (req, res) => {
           item.lineItemCost?.currency || 'GBP', order.buyer?.username || '', saleDate,
           order.orderPaymentStatus || 'PAID', order.orderFulfillmentStatus || 'NOT_STARTED',
           '', order.fulfillmentStartInstructions?.[0]?.shippingStep?.shipTo?.contactAddress?.countryCode || '',
-          ebayFees, effectiveShipping, netProfit, item.lineItemId);
+          ebayFees, effectiveShipping, adRateCost, itemCost, netProfit, item.lineItemId);
         synced++;
       }
     }

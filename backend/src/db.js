@@ -114,6 +114,8 @@ db.exec(`
     buyer_country TEXT,
     ebay_fees REAL DEFAULT 0,
     postage_cost REAL DEFAULT 0,
+    ad_rate_cost REAL DEFAULT 0,
+    item_cost REAL DEFAULT 0,
     net_profit REAL,
     order_line_item_id TEXT,
     created_at INTEGER DEFAULT (strftime('%s', 'now')),
@@ -196,6 +198,10 @@ if (userCount.count === 0) {
   `).run(adminId, 'admin', 'admin@saleso.local', hash);
   console.log('✅ Default admin created: admin / admin123 — CHANGE THIS PASSWORD');
 }
+
+// Migrations for existing databases
+try { db.prepare('ALTER TABLE sales ADD COLUMN ad_rate_cost REAL DEFAULT 0').run() } catch {}
+try { db.prepare('ALTER TABLE sales ADD COLUMN item_cost REAL DEFAULT 0').run() } catch {}
 
 module.exports = db;
 module.exports.UPLOADS_DIR = UPLOADS_DIR;

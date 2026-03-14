@@ -103,6 +103,7 @@ export function SalesPage() {
                     <th onClick={() => toggleSort('quantity')} style={{ cursor: 'pointer', userSelect: 'none' }}>Qty <SortIcon field="quantity" /></th>
                     <th onClick={() => toggleSort('total_price')} style={{ cursor: 'pointer', userSelect: 'none' }}>Total <SortIcon field="total_price" /></th>
                     <th onClick={() => toggleSort('net_profit')} style={{ cursor: 'pointer', userSelect: 'none' }}>Net <SortIcon field="net_profit" /></th>
+                    <th>Ad Cost</th>
                     <th onClick={() => toggleSort('buyer_username')} style={{ cursor: 'pointer', userSelect: 'none' }}>Buyer <SortIcon field="buyer_username" /></th>
                     <th onClick={() => toggleSort('sale_date')} style={{ cursor: 'pointer', userSelect: 'none' }}>Date <SortIcon field="sale_date" /></th>
                     <th onClick={() => toggleSort('payment_status')} style={{ cursor: 'pointer', userSelect: 'none' }}>Status <SortIcon field="payment_status" /></th>
@@ -120,6 +121,7 @@ export function SalesPage() {
                       <td className="mono">{sale.quantity}</td>
                       <td className="mono" style={{ fontWeight: 700 }}>{formatCurrency(sale.display_price || sale.total_price, currency)}</td>
                       <td className="mono" style={{ color: (sale.display_net || sale.net_profit) > 0 ? 'var(--green)' : 'var(--red)', fontSize: 12 }}>{formatCurrency(sale.display_net || sale.net_profit, currency)}</td>
+                      <td className="mono" style={{ fontSize: 11, color: sale.ad_rate_cost > 0 ? 'var(--red)' : 'var(--text-muted)' }}>{sale.ad_rate_cost > 0 ? formatCurrency(sale.ad_rate_cost, currency) : '—'}</td>
                       <td style={{ fontSize: 12 }}>{sale.buyer_username || '—'}</td>
                       <td style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{formatDateTime(sale.sale_date)}</td>
                       <td><span className={`badge ${statusBadgeClass(sale.payment_status)}`}>{sale.payment_status || '—'}</span></td>
@@ -156,6 +158,8 @@ export function SalesPage() {
                 ['eBay Fees', formatCurrency(selected.ebay_fees, currency)],
                 ['Postage', formatCurrency(selected.postage_cost, currency)],
                 ['Net Profit', formatCurrency(selected.display_net || selected.net_profit, currency)],
+                ['Ad Rate Cost', selected.ad_rate_cost > 0 ? formatCurrency(selected.ad_rate_cost, currency) : null],
+                ['Item Cost (COGS)', selected.item_cost > 0 ? formatCurrency(selected.item_cost, currency) : null],
                 ['Buyer', selected.buyer_username], ['Country', selected.buyer_country],
                 ['Date', formatDateTime(selected.sale_date)], ['Payment', selected.payment_status],
                 ['Shipping', selected.shipping_status], ['Tracking', selected.tracking_number],

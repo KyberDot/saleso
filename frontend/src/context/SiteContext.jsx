@@ -28,27 +28,14 @@ export function SiteProvider({ children }) {
 
   const applyTheme = (s, isDark) => {
     const root = document.documentElement
+    // Apply light/dark body class
+    document.body.classList.toggle('light-mode', !isDark)
 
     if (isDark) {
-      // Dark theme
-      root.style.setProperty('--bg', s.background_color || '#0a0a0f')
-      root.style.setProperty('--bg-card', s.card_color || '#111118')
-      root.style.setProperty('--bg-card2', (s.card_color || '#111118') + 'dd')
-      root.style.setProperty('--border', '#1e1e2e')
-      root.style.setProperty('--border-light', '#2a2a3a')
-      root.style.setProperty('--text', s.text_color || '#e8e8f0')
-      root.style.setProperty('--text-muted', '#6b6b80')
-      root.style.setProperty('--text-dim', '#9595a8')
-    } else {
-      // Light theme
-      root.style.setProperty('--bg', '#f4f4f8')
-      root.style.setProperty('--bg-card', '#ffffff')
-      root.style.setProperty('--bg-card2', '#f0f0f5')
-      root.style.setProperty('--border', '#dddde8')
-      root.style.setProperty('--border-light', '#c8c8d8')
-      root.style.setProperty('--text', '#1a1a2e')
-      root.style.setProperty('--text-muted', '#7070888')
-      root.style.setProperty('--text-dim', '#555568')
+      // Apply custom dark theme colors if set
+      if (s.background_color) root.style.setProperty('--bg', s.background_color)
+      if (s.card_color) root.style.setProperty('--bg-card', s.card_color)
+      if (s.text_color) root.style.setProperty('--text', s.text_color)
     }
 
     // Always apply accent/brand colours

@@ -153,10 +153,19 @@ export default function Dashboard() {
               <Link to="/inventory" style={{ fontSize: 11, color: 'var(--accent)', textDecoration: 'none' }}>All →</Link>
             </div>
             {data.topItems?.length > 0 ? (
-              <div style={{ overflowY: 'auto', maxHeight: 148 }}>
-                {data.topItems.map((item, i) => (
-                  <TopSellerRow key={i} item={item} i={i} currency={currency} />
+              <div>
+                {/* First 4 always shown */}
+                {data.topItems.slice(0, 4).map((item, i) => (
+                  <TopSellerRow key={i} item={item} i={i} />
                 ))}
+                {/* Rest in scrollable area - no gap between sections */}
+                {data.topItems.length > 4 && (
+                  <div style={{ maxHeight: 168, overflowY: 'auto' }}>
+                    {data.topItems.slice(4).map((item, i) => (
+                      <TopSellerRow key={i + 4} item={item} i={i + 4} />
+                    ))}
+                  </div>
+                )}
               </div>
             ) : <div className="empty-state" style={{ padding: '30px 0' }}><p>No items yet</p></div>}
           </div>
@@ -197,17 +206,25 @@ export default function Dashboard() {
   )
 }
 
-function TopSellerRow({ item, i, currency }) {
+function TopSellerRow({ item, i }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid var(--border)' }}>
-      <div style={{ width: 20, height: 20, borderRadius: 5, background: i === 0 ? 'var(--accent)' : 'var(--bg-card2)', color: i === 0 ? '#000' : 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontFamily: 'var(--font-mono)', fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+      <div style={{
+        width: 22, height: 22, borderRadius: 6,
+        background: i === 0 ? 'var(--accent)' : i === 1 ? 'var(--bg-card3)' : 'var(--bg-card2)',
+        color: i === 0 ? '#000' : 'var(--text-dim)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 10, fontFamily: 'var(--font-mono)', fontWeight: 700, flexShrink: 0
+      }}>{i + 1}</div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.item_title || item.sku || 'Unknown'}</div>
-        {item.sku && <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{item.sku}</div>}
+        <div style={{ fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text)' }}>
+          {item.item_title || item.sku || 'Unknown'}
+        </div>
+        {item.sku && <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: 1 }}>{item.sku}</div>}
       </div>
       <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{item.total_sold}</div>
-        <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>sold</div>
+        <div style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{item.total_sold}</div>
+        <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>sold</div>
       </div>
     </div>
   )

@@ -36,59 +36,47 @@ export default function LoginPage() {
 
   const siteName = settings.site_name || 'SalesO'
   const showText = settings.login_show_text !== 'false'
+  const logoWidth = settings.login_logo_width || settings.logo_width || '160'
+  const logoHeight = settings.login_logo_height || settings.logo_height || '48'
 
-  // Pick correct logo for current mode
   const logoUrl = darkMode
     ? (settings.site_logo_dark ? `${API_BASE}${settings.site_logo_dark}` : settings.site_logo ? `${API_BASE}${settings.site_logo}` : null)
     : (settings.site_logo_light ? `${API_BASE}${settings.site_logo_light}` : settings.site_logo ? `${API_BASE}${settings.site_logo}` : null)
 
-  const logoWidth = settings.logo_width || '200'
-  const logoHeight = settings.logo_height || '60'
-
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, position: 'relative', overflow: 'hidden' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, position: 'relative', overflow: 'hidden' }}>
       <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px)', backgroundSize: '60px 60px', opacity: 0.3 }} />
-      <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%,-50%)', width: 600, height: 400, background: 'radial-gradient(ellipse, var(--accent-glow) 0%, transparent 70%)', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%,-50%)', width: 500, height: 300, background: 'radial-gradient(ellipse, var(--accent-glow) 0%, transparent 70%)', pointerEvents: 'none' }} />
 
-      {/* Dark/light toggle top right */}
+      {/* Dark/light toggle — small, top right */}
       <button
         onClick={toggleDarkMode}
-        style={{ position: 'absolute', top: 20, right: 20, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 13, color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 6, zIndex: 2 }}
+        title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+        style={{ position: 'fixed', top: 14, right: 14, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}
       >
-        {darkMode ? '☀️ Light' : '🌙 Dark'}
+        {darkMode ? '☀️' : '🌙'}
       </button>
 
-      <div className="fade-in" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: '48px 40px', width: '100%', maxWidth: 420, position: 'relative', zIndex: 1 }}>
+      <div className="fade-in" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, padding: '32px 32px', width: '100%', maxWidth: 380, position: 'relative', zIndex: 1 }}>
 
         {/* Logo / Brand */}
-        <div style={{ textAlign: 'center', marginBottom: 36 }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
           {logoUrl ? (
-            <div style={{ marginBottom: 12 }}>
-              <img
-                src={logoUrl}
-                alt={siteName}
-                style={{
-                  maxWidth: logoWidth + 'px',
-                  maxHeight: logoHeight + 'px',
-                  objectFit: 'contain'
-                }}
-              />
+            <div style={{ marginBottom: showText ? 10 : 0 }}>
+              <img src={logoUrl} alt={siteName} style={{ maxWidth: logoWidth + 'px', maxHeight: logoHeight + 'px', objectFit: 'contain' }} />
             </div>
           ) : (
-            <div style={{ width: 64, height: 64, background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-dim) 100%)', borderRadius: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, marginBottom: 16, boxShadow: '0 8px 32px var(--accent-glow)' }}>📦</div>
+            <div style={{ width: 52, height: 52, background: 'linear-gradient(135deg, var(--accent) 0%, var(--accent-dim) 100%)', borderRadius: 13, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, marginBottom: showText ? 10 : 0, boxShadow: '0 6px 24px var(--accent-glow)' }}>📦</div>
           )}
           {showText && (
             <>
-              <h1 style={{ fontFamily: 'var(--font-mono)', fontSize: 24, fontWeight: 700, marginBottom: 6 }}>{siteName}</h1>
-              <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Sign in to your account</p>
+              <h1 style={{ fontFamily: 'var(--font-mono)', fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{siteName}</h1>
+              <p style={{ color: 'var(--text-muted)', fontSize: 12 }}>Sign in to your account</p>
             </>
-          )}
-          {!showText && !logoUrl && (
-            <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Sign in to your account</p>
           )}
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div className="form-group">
             <label>Email or Username</label>
             <input type="text" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" autoFocus />
@@ -97,14 +85,14 @@ export default function LoginPage() {
             <label>Password</label>
             <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
           </div>
-          <button type="submit" className="btn btn-primary btn-lg" disabled={loading} style={{ width: '100%', justifyContent: 'center', marginTop: 4 }}>
-            {loading ? <><span className="spinner" style={{ width: 16, height: 16 }} />Signing in…</> : 'Sign In'}
+          <button type="submit" className="btn btn-primary" disabled={loading} style={{ width: '100%', justifyContent: 'center', padding: '10px 16px', fontSize: 14, marginTop: 2 }}>
+            {loading ? <><span className="spinner" style={{ width: 15, height: 15 }} />Signing in…</> : 'Sign In'}
           </button>
         </form>
 
-        <div style={{ textAlign: 'center', marginTop: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ textAlign: 'center', marginTop: 16, display: 'flex', flexDirection: 'column', gap: 6 }}>
           <Link to="/forgot-password" style={{ fontSize: 12, color: 'var(--text-muted)', textDecoration: 'none' }}>Forgot your password?</Link>
-          <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Need access? Contact your administrator for an invitation.</p>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Need access? Contact your administrator.</p>
         </div>
       </div>
     </div>

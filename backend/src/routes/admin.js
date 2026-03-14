@@ -141,7 +141,8 @@ router.patch('/settings', requireAdmin, (req, res) => {
     'allow_registration', 'require_invite',
     'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from', 'smtp_secure',
     'logo_width', 'logo_height', 'username_color',
-    'sidebar_show_text', 'login_show_text', 'dark_mode_default'
+    'sidebar_show_text', 'login_show_text', 'dark_mode_default',
+    'login_logo_width', 'login_logo_height', 'site_url'
   ];
 
   const update = db.prepare(`INSERT OR REPLACE INTO site_settings (key, value, updated_at) VALUES (?, ?, strftime('%s', 'now'))`);
@@ -165,6 +166,32 @@ router.post('/settings/logo/:variant', requireAdmin, logoUpload.single('logo'), 
     db.prepare('INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)').run('site_logo', logoUrl);
   }
   res.json({ success: true, logo_url: logoUrl, variant });
+});
+
+// Upload favicon
+const faviconStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(UPLOADS_DIR, 'logo');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `favicon${ext}`);
+  }
+});
+const faviconUpload = multer({ storage: faviconStorage, limits: { fileSize: 1 * 1024 * 1024 } });
+
+router.post('/settings/favicon', requireAdmin, faviconUpload.single('favicon'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  const url = `/uploads/logo/${req.file.filename}`;
+  db.prepare('INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)').run('site_favicon', url);
+  res.json({ success: true, favicon_url: url });
+});
+
+router.delete('/settings/favicon', requireAdmin, (req, res) => {
+  db.prepare('INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)').run('site_favicon', '');
+  res.json({ success: true });
 });
 
 // Upload eBay sync logo

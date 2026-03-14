@@ -36,9 +36,17 @@ export default function SettingsPage() {
       setUsername(user.username || '')
       setEmail(user.email || '')
       setCurrency(user.default_currency || 'GBP')
+      // Always sync eBay connection state from user object
       setEbayConnected(!!user.ebay_username)
     }
   }, [user])
+
+  // Force re-check user from server when eBay tab is opened
+  useEffect(() => {
+    if (tab === 'ebay') {
+      checkAuth()
+    }
+  }, [tab])
 
   useEffect(() => {
     if (searchParams.get('ebay_success')) {

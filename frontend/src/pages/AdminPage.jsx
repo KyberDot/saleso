@@ -187,18 +187,20 @@ function InvitesTab({ toast }) {
       {/* Create */}
       <div className="card">
         <h3 style={{ fontFamily: 'var(--font-mono)', fontSize: 12, marginBottom: 16 }}>INVITE NEW USER</h3>
-        <form onSubmit={createInvite} style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <div className="form-group" style={{ flex: 1, minWidth: 220 }}>
-            <label>Email Address</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="user@example.com" />
+        <form onSubmit={createInvite}>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 12 }}>
+            <div className="form-group" style={{ flex: 1, minWidth: 220, marginBottom: 0 }}>
+              <label>Email Address</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="user@example.com" />
+            </div>
+            <button type="submit" className="btn btn-primary" disabled={creating} style={{ height: 36, whiteSpace: 'nowrap', flexShrink: 0 }}>
+              {creating ? <><span className="spinner" style={{ width: 14, height: 14 }} />Creating…</> : '+ Create Invite'}
+            </button>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 2 }}>
-            <input type="checkbox" id="sendEmail" checked={sendEmail} onChange={e => setSendEmail(e.target.checked)} style={{ width: 'auto' }} />
-            <label htmlFor="sendEmail" style={{ fontSize: 12, color: 'var(--text-dim)', textTransform: 'none', letterSpacing: 0, margin: 0 }}>Send email invite</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <input type="checkbox" id="sendEmail" checked={sendEmail} onChange={e => setSendEmail(e.target.checked)} style={{ width: 'auto', margin: 0 }} />
+            <label htmlFor="sendEmail" style={{ fontSize: 12, color: 'var(--text-dim)', textTransform: 'none', letterSpacing: 0, margin: 0, cursor: 'pointer' }}>Send email invite automatically</label>
           </div>
-          <button type="submit" className="btn btn-primary" disabled={creating} style={{ paddingBottom: 2 }}>
-            {creating ? <><span className="spinner" style={{ width: 14, height: 14 }} />Creating…</> : '+ Create Invite'}
-          </button>
         </form>
 
         {lastInvite && (
@@ -249,6 +251,7 @@ function AppearanceTab({ toast, loadSettings }) {
   const darkLogoRef = useRef()
   const lightLogoRef = useRef()
   const ebayLogoRef = useRef()
+  const faviconRef = useRef()
 
   useEffect(() => {
     api.get('/api/admin/settings').then(r => setSettings(r.data.settings || {})).catch(() => {})
@@ -269,7 +272,12 @@ function AppearanceTab({ toast, loadSettings }) {
     setUploadingLogo(x => ({ ...x, [variant]: true }))
     const form = new FormData(); form.append('logo', file)
     try {
-      if (variant === 'ebay') {
+      if (variant === 'favicon') {
+        const r = await api.post('/api/admin/settings/favicon', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+        setSettings(x => ({ ...x, site_favicon: r.data.favicon_url }))
+        await loadSettings()
+        toast('Favicon uploaded', 'success')
+      } else if (variant === 'ebay') {
         const r = await api.post('/api/admin/settings/ebay-logo', form, { headers: { 'Content-Type': 'multipart/form-data' } })
         setSettings(x => ({ ...x, ebay_sync_logo: r.data.logo_url }))
         await loadSettings()
@@ -286,7 +294,10 @@ function AppearanceTab({ toast, loadSettings }) {
   }
 
   const removeLogo = async (variant) => {
-    if (variant === 'ebay') {
+    if (variant === 'favicon') {
+      await api.delete('/api/admin/settings/favicon')
+      setSettings(x => ({ ...x, site_favicon: '' }))
+    } else if (variant === 'ebay') {
       await api.delete('/api/admin/settings/ebay-logo')
       setSettings(x => ({ ...x, ebay_sync_logo: '' }))
     } else {
@@ -308,7 +319,7 @@ function AppearanceTab({ toast, loadSettings }) {
   ]
 
   const LogoSlot = ({ variant, label, hint, bgColor, logoRef }) => {
-    const key = variant === 'light' ? 'site_logo_light' : variant === 'ebay' ? 'ebay_sync_logo' : 'site_logo_dark'
+    const key = variant === 'light' ? 'site_logo_light' : variant === 'ebay' ? 'ebay_sync_logo' : variant === 'favicon' ? 'site_favicon' : 'site_logo_dark'
     const logoUrl = settings[key] ? `${API_BASE}${settings[key]}` : null
     const uploading = uploadingLogo[variant]
 
@@ -376,6 +387,28 @@ function AppearanceTab({ toast, loadSettings }) {
           <input value={settings.site_name || ''} onChange={e => setSettings(x => ({ ...x, site_name: e.target.value }))} placeholder="SalesO" />
         </div>
 
+        <div className="form-group">
+          <label>Site URL</label>
+          <input value={settings.site_url || ''} onChange={e => setSettings(x => ({ ...x, site_url: e.target.value }))} placeholder="https://saleso.app" />
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Clicking the logo in the sidebar opens this URL</p>
+        </div>
+
+        {/* Favicon */}
+        <div>
+          <label>Favicon</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 8 }}>
+            <div style={{ width: 48, height: 48, background: 'var(--bg-card2)', borderRadius: 8, border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+              {settings.site_favicon ? <img src={`${API_BASE}${settings.site_favicon}`} alt="favicon" style={{ width: 32, height: 32, objectFit: 'contain' }} /> : <span style={{ fontSize: 20 }}>📦</span>}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <input type="file" ref={faviconRef} onChange={e => uploadLogo(e, 'favicon')} accept="image/png,image/ico,image/svg+xml,image/x-icon" style={{ display: 'none' }} />
+              <button className="btn btn-secondary btn-sm" onClick={() => faviconRef.current?.click()} disabled={uploadingLogo.favicon}>{uploadingLogo.favicon ? 'Uploading…' : 'Upload Favicon'}</button>
+              {settings.site_favicon && <button className="btn btn-danger btn-sm" onClick={() => removeLogo('favicon')}>Remove</button>}
+              <p style={{ fontSize: 10, color: 'var(--text-muted)' }}>PNG, ICO or SVG — 32×32px recommended</p>
+            </div>
+          </div>
+        </div>
+
         {/* Site logos */}
         <div>
           <label>Site Logos</label>
@@ -394,6 +427,18 @@ function AppearanceTab({ toast, loadSettings }) {
           <div className="form-group">
             <label>Logo Max Height (px)</label>
             <input type="number" value={settings.logo_height || '60'} onChange={e => setSettings(x => ({ ...x, logo_height: e.target.value }))} min="20" max="200" />
+          </div>
+        </div>
+
+        {/* Login page logo size */}
+        <div className="form-row">
+          <div className="form-group">
+            <label>Login Logo Max Width (px)</label>
+            <input type="number" value={settings.login_logo_width || '160'} onChange={e => setSettings(x => ({ ...x, login_logo_width: e.target.value }))} min="40" max="300" />
+          </div>
+          <div className="form-group">
+            <label>Login Logo Max Height (px)</label>
+            <input type="number" value={settings.login_logo_height || '48'} onChange={e => setSettings(x => ({ ...x, login_logo_height: e.target.value }))} min="16" max="120" />
           </div>
         </div>
 

@@ -62,6 +62,12 @@ export function SiteProvider({ children }) {
     if (s.accent_color) root.style.setProperty('--green', s.accent_color)
     if (s.username_color) root.style.setProperty('--username-color', s.username_color)
     if (s.site_name) document.title = s.site_name
+    // Update favicon
+    if (s.site_favicon) {
+      let link = document.querySelector("link[rel~='icon']")
+      if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link) }
+      link.href = s.site_favicon.startsWith('http') ? s.site_favicon : (window.location.origin + s.site_favicon)
+    }
   }
 
   const toggleDarkMode = () => {

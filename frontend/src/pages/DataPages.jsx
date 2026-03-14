@@ -353,12 +353,14 @@ export function InventoryPage() {
 
   const filteredItems = items.filter(item => {
     const qty = item.quantity_available
+    // Active = qty is null (unknown) OR qty > 0
+    // Inactive = qty is exactly 0
     if (stockFilter === 'in') return qty === null || qty === undefined || qty > 0
-    return qty !== null && qty !== undefined && qty <= 0
+    return qty !== null && qty !== undefined && qty === 0
   })
 
-  const inCount = items.filter(i => (i.quantity_available ?? 1) > 0).length
-  const outCount = items.filter(i => i.quantity_available !== null && i.quantity_available !== undefined && i.quantity_available <= 0).length
+  const inCount = items.filter(i => i.quantity_available === null || i.quantity_available === undefined || i.quantity_available > 0).length
+  const outCount = items.filter(i => i.quantity_available !== null && i.quantity_available !== undefined && i.quantity_available === 0).length
   const sp = { sortField, sortDir, onSort }
 
   const margin = (item) => {

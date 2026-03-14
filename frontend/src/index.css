@@ -29,7 +29,7 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { font-size: 14px; -webkit-font-smoothing: antialiased; }
-body { background: var(--bg); color: var(--text); font-family: var(--font-sans); line-height: 1.6; min-height: 100vh; overflow-x: hidden; }
+body { background: var(--bg); color: var(--text); font-family: var(--font-sans); line-height: 1.6; min-height: 100vh; }
 
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -116,7 +116,6 @@ select option { background: var(--bg-card2); }
   text-transform: uppercase; letter-spacing: 0.08em;
   border-bottom: 1px solid var(--border); white-space: nowrap;
   background: var(--bg-card);
-  position: sticky; top: 0;
 }
 .data-table td {
   padding: 11px 16px; border-bottom: 1px solid var(--border);
@@ -135,11 +134,9 @@ select option { background: var(--bg-card2); }
 }
 .main-content { margin-left: 220px; flex: 1; min-height: 100vh; background: var(--bg); }
 .page-header {
-  padding: 22px 28px 18px; border-bottom: 1px solid var(--border);
+  padding: 20px 28px 16px; border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between;
-  gap: 16px; flex-wrap: wrap; background: var(--bg);
-  position: sticky; top: 0; z-index: 10;
-  backdrop-filter: blur(12px);
+  gap: 12px; flex-wrap: wrap; background: var(--bg);
 }
 .page-body { padding: 24px 28px; }
 

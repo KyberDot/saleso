@@ -140,10 +140,16 @@ router.get('/ebay/callback', async (req, res) => {
     const expiry = Date.now() + (tokenData.expires_in * 1000);
 
     let ebayUser = {};
-    try { ebayUser = await ebay.getUserProfile(tokenData.access_token); } catch (e) {}
+    try { ebayUser = await ebay.getUserProfile(tokenData.access_token); } catch (e) {
+      console.log('Could not fetch eBay profile (non-critical):', e.message);
+    }
+
+    // Use 'connected' as fallback so ebay_username is never empty string
+    const ebayUserId = ebayUser.userId || ebayUser.username || 'ebay_user';
+    const ebayUsername = ebayUser.username || ebayUser.userId || 'connected';
 
     db.prepare(`UPDATE users SET ebay_user_id = ?, ebay_username = ?, ebay_access_token = ?, ebay_refresh_token = ?, ebay_token_expiry = ?, updated_at = strftime('%s','now') WHERE id = ?`)
-      .run(ebayUser.userId || 'unknown', ebayUser.username || '', tokenData.access_token, tokenData.refresh_token, expiry, userId);
+      .run(ebayUserId, ebayUsername, tokenData.access_token, tokenData.refresh_token, expiry, userId);
 
     req.session.userId = userId;
     req.session.save(() => res.redirect(`${frontendUrl}/settings?ebay_success=true`));

@@ -126,8 +126,8 @@ export default function SettingsPage() {
     { id: 'password', label: '🔒 Password' },
   ]
 
-  // Always compute from current user - never cache this
-  const isConnected = !!(user?.ebay_username)
+  // Connected if has username OR has access token stored
+  const isConnected = !!(user?.ebay_username) || !!(user?.ebay_user_id)
 
   return (
     <div>

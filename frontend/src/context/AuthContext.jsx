@@ -9,7 +9,7 @@ export function AuthProvider({ children }) {
 
   const checkAuth = useCallback(async () => {
     try {
-      const res = await api.get('/api/auth/status')
+      const res = await api.get('/api/auth/status', { params: { _t: Date.now() } })
       setUser(res.data.authenticated ? res.data.user : null)
     } catch { setUser(null) }
     finally { setLoading(false) }

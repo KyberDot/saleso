@@ -43,13 +43,14 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (searchParams.get('ebay_success')) {
-      checkAuth().then(() => {
-        setEbayConnected(true)
-        toast('eBay connected successfully!', 'success')
-        // Clear the URL param
-        window.history.replaceState({}, '', '/settings?tab=ebay')
-      })
       setTab('ebay')
+      // Force fresh user fetch to get updated ebay_username
+      setTimeout(() => {
+        checkAuth().then(() => {
+          toast('eBay connected successfully!', 'success')
+          window.history.replaceState({}, '', '/settings?tab=ebay')
+        })
+      }, 300)
     }
     if (searchParams.get('ebay_error')) {
       toast('eBay error: ' + searchParams.get('ebay_error'), 'error')

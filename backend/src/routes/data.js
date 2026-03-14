@@ -20,7 +20,7 @@ inventoryRouter.get('/', requireAuth, (req, res) => {
     const s = `%${search}%`;
     params.push(s, s, s, s);
   }
-  const allowedSort = ['quantity_available','price','cost_price','sold_30d','revenue_30d','listing_status','updated_at']
+  const allowedSort = ['quantity_available','price','cost_price','listing_status','updated_at','title']
   const sortCol = allowedSort.includes(sort) ? sort : 'updated_at'
   const sortDir = dir === 'asc' ? 'ASC' : 'DESC'
   query += ` ORDER BY ${sortCol} ${sortDir} LIMIT ? OFFSET ?`;
@@ -97,11 +97,19 @@ inventoryRouter.post('/sync', requireAuth, requireEbay, async (req, res) => {
     const orderItems = db.prepare('SELECT DISTINCT item_id, item_title, sku, custom_label FROM sales WHERE user_id = ?').all(req.user.id);
     for (const oi of orderItems) {
       if (!oi.item_id) continue;
-      const exists = db.prepare('SELECT id FROM tracked_items WHERE user_id = ? AND item_id = ?').get(req.user.id, oi.item_id);
       if (!exists) {
-        db.prepare("INSERT OR IGNORE INTO tracked_items (id,user_id,item_id,sku,custom_label,title,currency) VALUES (?,?,?,?,?,?,'GBP')")
-          .run(uuidv4(), req.user.id, oi.item_id, oi.sku || '', oi.custom_label || '', oi.item_title || '');
+        // Get price from most recent sale of this item
+        const lastSale = db.prepare('SELECT sale_price, quantity FROM sales WHERE user_id = ? AND item_id = ? ORDER BY sale_date DESC LIMIT 1').get(req.user.id, oi.item_id);
+        db.prepare("INSERT OR IGNORE INTO tracked_items (id,user_id,item_id,sku,custom_label,title,price,currency) VALUES (?,?,?,?,?,?,?,'GBP')")
+          .run(uuidv4(), req.user.id, oi.item_id, oi.sku || '', oi.custom_label || '', oi.item_title || '', lastSale?.sale_price || null);
         synced++;
+      } else {
+        // Update price from most recent sale if not manually set
+        const lastSale = db.prepare('SELECT sale_price FROM sales WHERE user_id = ? AND item_id = ? ORDER BY sale_date DESC LIMIT 1').get(req.user.id, oi.item_id);
+        if (lastSale?.sale_price) {
+          db.prepare("UPDATE tracked_items SET price = COALESCE(NULLIF(price,0), ?), title = COALESCE(NULLIF(title,''), ?), updated_at = strftime('%s','now') WHERE user_id = ? AND item_id = ?")
+            .run(lastSale.sale_price, oi.item_title || '', req.user.id, oi.item_id);
+        }
       }
     }
     res.json({ success: true, synced });

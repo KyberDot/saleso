@@ -5,9 +5,9 @@ import { useSite } from '../context/SiteContext'
 import { API_BASE } from '../utils/api'
 
 const navItems = [
-  { to: '/', label: 'Dashboard', icon: '◼', end: true },
-  { to: '/sales', label: 'Sales', icon: '⬆', end: false },
-  { to: '/orders', label: 'Orders', icon: '🗂', end: false },
+  { to: '/', label: 'Dashboard', icon: '🏠', end: true },
+  { to: '/sales', label: 'Sales', icon: '💰', end: false },
+  { to: '/orders', label: 'Orders', icon: '🗂️', end: false },
   { to: '/inventory', label: 'Inventory', icon: '📦', end: false },
   { to: '/stats', label: 'Analytics', icon: '📊', end: false },
 ]

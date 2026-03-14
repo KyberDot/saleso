@@ -69,15 +69,19 @@ export function SalesPage() {
             <span className="search-icon">🔍</span>
             <input placeholder="SKU, order, buyer…" value={search} onChange={handleSearch} />
           </div>
-          {/* Date range */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg-card2)', border: '1px solid var(--border)', borderRadius: 8, padding: '4px 10px' }}>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>From</span>
+          {/* From box */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg-card2)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 10px' }}>
+            <span style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>FROM</span>
             <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setPage(0); load(0, search, e.target.value, dateTo) }}
-              style={{ width: 130, background: 'transparent', border: 'none', fontSize: 12, color: 'var(--text)', outline: 'none', padding: '2px 0', colorScheme: 'dark' }} />
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>To</span>
+              style={{ width: 120, background: 'transparent', border: 'none', fontSize: 12, color: 'var(--text)', outline: 'none', colorScheme: 'dark', cursor: 'pointer' }} />
+            {dateFrom && <button onClick={() => { setDateFrom(''); load(0, search, '', dateTo) }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 13, lineHeight: 1, padding: 0 }}>✕</button>}
+          </div>
+          {/* To box */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg-card2)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 10px' }}>
+            <span style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>TO</span>
             <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setPage(0); load(0, search, dateFrom, e.target.value) }}
-              style={{ width: 130, background: 'transparent', border: 'none', fontSize: 12, color: 'var(--text)', outline: 'none', padding: '2px 0', colorScheme: 'dark' }} />
-            {(dateFrom || dateTo) && <button onClick={() => { setDateFrom(''); setDateTo(''); load(0, search, '', '') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 14, lineHeight: 1 }}>✕</button>}
+              style={{ width: 120, background: 'transparent', border: 'none', fontSize: 12, color: 'var(--text)', outline: 'none', colorScheme: 'dark', cursor: 'pointer' }} />
+            {dateTo && <button onClick={() => { setDateTo(''); load(0, search, dateFrom, '') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 13, lineHeight: 1, padding: 0 }}>✕</button>}
           </div>
           <button className="btn btn-secondary btn-sm" onClick={handleExport} title="Export CSV">📥</button>
           <SyncButton onSync={() => load(0, search)} />
@@ -284,14 +288,18 @@ export function InventoryPage() {
   const [edit, setEdit] = useState(null)
   const [sortField, setSortField] = useState('updated_at')
   const [sortDir, setSortDir] = useState('desc')
+  const [stockFilter, setStockFilter] = useState('in') // 'in' | 'out'
   const currency = user?.default_currency || 'GBP'
 
   const load = useCallback(async (q = '', sf = sortField, sd = sortDir) => {
     setLoading(true)
     try {
       const res = await api.get('/api/inventory', { params: { search: q || undefined, limit: 200, sort: sf, dir: sd } })
-      setItems(res.data.items); setTotal(res.data.total)
-    } catch { toast('Failed to load inventory', 'error') }
+      setItems(res.data.items || [])
+      setTotal(res.data.total || 0)
+    } catch (err) {
+      toast('Failed to load inventory: ' + (err.response?.data?.error || err.message), 'error')
+    }
     finally { setLoading(false) }
   }, [sortField, sortDir])
 
@@ -310,8 +318,10 @@ export function InventoryPage() {
 
   const openDetail = async (item) => {
     setSelected(item); setDetail(null); setEdit(null)
-    const res = await api.get(`/api/inventory/${item.id}`)
-    setDetail(res.data)
+    try {
+      const res = await api.get(`/api/inventory/${item.id}`)
+      setDetail(res.data)
+    } catch {}
   }
 
   const saveEdit = async () => {
@@ -331,13 +341,23 @@ export function InventoryPage() {
     return ((item.price - item.cost_price) / item.price * 100).toFixed(1)
   }
 
+  // Filter by stock status
+  const filteredItems = items.filter(item => {
+    const qty = item.quantity_available ?? null
+    if (stockFilter === 'in') return qty === null || qty > 0
+    return qty !== null && qty <= 0
+  })
+
+  const inCount = items.filter(i => (i.quantity_available ?? 1) > 0).length
+  const outCount = items.filter(i => i.quantity_available !== null && i.quantity_available <= 0).length
+
   const cols = [
     { label: 'Stock', field: 'quantity_available' },
     { label: 'Price', field: 'price' },
     { label: 'Cost', field: 'cost_price' },
     { label: 'Margin', field: null },
-    { label: 'Sold 30d', field: 'sold_30d' },
-    { label: 'Rev 30d', field: 'revenue_30d' },
+    { label: 'Sold 30d', field: null },
+    { label: 'Rev 30d', field: null },
     { label: 'Status', field: 'listing_status' },
   ]
 
@@ -345,7 +365,7 @@ export function InventoryPage() {
     <div>
       <div className="page-header">
         <div><h2 style={{ fontSize: 18, marginBottom: 2 }}>📦 Inventory</h2><p style={{ color: 'var(--text-muted)', fontSize: 12 }}>{total} tracked items</p></div>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <div className="search-bar" style={{ width: 240 }}>
             <span className="search-icon">🔍</span>
             <input placeholder="Title, SKU, tag…" value={search} onChange={e => { setSearch(e.target.value); load(e.target.value) }} />
@@ -355,56 +375,85 @@ export function InventoryPage() {
       </div>
 
       <div className="page-body">
+        {/* Stock switcher */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          {[
+            { key: 'in', label: `✅ In Stock`, count: inCount },
+            { key: 'out', label: `❌ Out of Stock`, count: outCount },
+          ].map(opt => (
+            <button key={opt.key} onClick={() => setStockFilter(opt.key)}
+              className="btn btn-sm"
+              style={{
+                background: stockFilter === opt.key ? 'var(--accent)' : 'var(--bg-card)',
+                color: stockFilter === opt.key ? '#000' : 'var(--text-muted)',
+                border: '1px solid var(--border)',
+                display: 'flex', alignItems: 'center', gap: 6,
+              }}>
+              {opt.label}
+              <span style={{ background: stockFilter === opt.key ? 'rgba(0,0,0,0.15)' : 'var(--bg-card2)', borderRadius: 10, padding: '1px 7px', fontSize: 11, fontFamily: 'var(--font-mono)' }}>
+                {opt.count}
+              </span>
+            </button>
+          ))}
+        </div>
+
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          {loading ? <div style={{ padding: 40, textAlign: 'center' }}><span className="spinner" style={{ width: 28, height: 28 }} /></div>
-          : items.length === 0 ? <div className="empty-state"><div className="empty-icon">📦</div><h3>No inventory yet</h3><p>Sync your eBay account to pull listings</p></div>
-          : (
-            <div style={{ overflowX: 'auto' }}>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Item</th>
-                    <th>SKU</th>
-                    {cols.map(c => (
-                      <th key={c.label}
-                        onClick={c.field ? () => toggleSort(c.field) : undefined}
-                        style={{ cursor: c.field ? 'pointer' : 'default', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                        {c.label} {c.field && <SortIcon field={c.field} />}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map(item => {
-                    const m = margin(item)
-                    return (
-                      <tr key={item.id} onClick={() => openDetail(item)}>
-                        <td style={{ maxWidth: 220 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            {item.image_url
-                              ? <img src={item.image_url} alt="" style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 6, flexShrink: 0, border: '1px solid var(--border)' }} onError={e => e.target.style.display='none'} />
-                              : <div style={{ width: 32, height: 32, background: 'var(--bg-card2)', borderRadius: 6, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>📦</div>}
-                            <div style={{ minWidth: 0 }}>
-                              <div style={{ fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title || item.custom_label || '(No title)'}</div>
-                              <div className="mono" style={{ fontSize: 10, color: 'var(--text-muted)' }}>#{item.item_id}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td><span className="mono" style={{ fontSize: 11, background: 'var(--bg-card2)', padding: '2px 7px', borderRadius: 4, color: 'var(--accent)' }}>{item.sku || item.custom_label || '—'}</span></td>
-                        <td className="mono" style={{ fontWeight: 600, color: item.quantity_available === 0 ? 'var(--red)' : item.quantity_available < 5 ? 'var(--accent)' : 'var(--green)' }}>{item.quantity_available ?? '—'}</td>
-                        <td className="mono" style={{ fontSize: 12 }}>{item.display_price ? formatCurrency(item.display_price, currency) : item.price ? formatCurrency(item.price, currency) : '—'}</td>
-                        <td className="mono" style={{ fontSize: 11, color: 'var(--text-dim)' }}>{item.cost_price ? formatCurrency(item.cost_price, currency) : '—'}</td>
-                        <td>{m != null ? <span className={`badge ${parseFloat(m) > 30 ? 'badge-green' : parseFloat(m) > 0 ? 'badge-yellow' : 'badge-red'}`}>{m}%</span> : '—'}</td>
-                        <td className="mono" style={{ fontWeight: 700, color: item.sold_30d > 0 ? 'var(--text)' : 'var(--text-muted)' }}>{item.sold_30d || 0}</td>
-                        <td className="mono" style={{ fontSize: 12 }}>{item.revenue_30d ? formatCurrency(item.revenue_30d, currency) : '—'}</td>
-                        <td><span className={`badge ${statusBadgeClass(item.listing_status)}`}>{item.listing_status || 'Active'}</span></td>
+          {loading
+            ? <div style={{ padding: 40, textAlign: 'center' }}><span className="spinner" style={{ width: 28, height: 28 }} /></div>
+            : filteredItems.length === 0
+              ? <div className="empty-state"><div className="empty-icon">📦</div><h3>{stockFilter === 'out' ? 'No out of stock items' : 'No inventory yet'}</h3><p>{stockFilter === 'in' ? 'Sync your eBay account to pull listings' : 'All items have stock'}</p></div>
+              : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Item</th>
+                        <th>SKU</th>
+                        {cols.map(c => (
+                          <th key={c.label}
+                            onClick={c.field ? () => toggleSort(c.field) : undefined}
+                            style={{ cursor: c.field ? 'pointer' : 'default', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                            {c.label} {c.field && <SortIcon field={c.field} />}
+                          </th>
+                        ))}
                       </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+                    </thead>
+                    <tbody>
+                      {filteredItems.map(item => {
+                        const m = margin(item)
+                        const qty = item.quantity_available
+                        const price = item.display_price || item.price
+                        return (
+                          <tr key={item.id} onClick={() => openDetail(item)}>
+                            <td style={{ maxWidth: 220 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                {item.image_url
+                                  ? <img src={item.image_url} alt="" style={{ width: 32, height: 32, objectFit: 'cover', borderRadius: 6, flexShrink: 0, border: '1px solid var(--border)' }} onError={e => e.target.style.display='none'} />
+                                  : <div style={{ width: 32, height: 32, background: 'var(--bg-card2)', borderRadius: 6, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>📦</div>}
+                                <div style={{ minWidth: 0 }}>
+                                  <div style={{ fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title || item.custom_label || '(No title)'}</div>
+                                  <div className="mono" style={{ fontSize: 10, color: 'var(--text-muted)' }}>#{item.item_id}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td><span className="mono" style={{ fontSize: 11, background: 'var(--bg-card2)', padding: '2px 7px', borderRadius: 4, color: 'var(--accent)' }}>{item.sku || item.custom_label || '—'}</span></td>
+                            <td className="mono" style={{ fontWeight: 600, color: qty === 0 ? 'var(--red)' : qty !== null && qty < 5 ? 'var(--accent)' : 'var(--green)' }}>
+                              {qty !== null && qty !== undefined ? qty : '—'}
+                            </td>
+                            <td className="mono" style={{ fontSize: 12 }}>{price ? formatCurrency(price, currency) : '—'}</td>
+                            <td className="mono" style={{ fontSize: 11, color: 'var(--text-dim)' }}>{item.cost_price ? formatCurrency(item.cost_price, currency) : '—'}</td>
+                            <td>{m != null ? <span className={`badge ${parseFloat(m) > 30 ? 'badge-green' : parseFloat(m) > 0 ? 'badge-yellow' : 'badge-red'}`}>{m}%</span> : '—'}</td>
+                            <td className="mono" style={{ fontWeight: 700, color: item.sold_30d > 0 ? 'var(--text)' : 'var(--text-muted)' }}>{item.sold_30d || 0}</td>
+                            <td className="mono" style={{ fontSize: 12 }}>{item.revenue_30d ? formatCurrency(item.revenue_30d, currency) : '—'}</td>
+                            <td><span className={`badge ${item.listing_status === 'Active' ? 'badge-green' : 'badge-yellow'}`}>{item.listing_status || 'Active'}</span></td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )
+          }
         </div>
       </div>
 
@@ -432,12 +481,12 @@ export function InventoryPage() {
                     { label: 'Cost Price', key: 'cost_price', type: 'number', hint: 'Your purchase cost' },
                     { label: 'Stock Qty', key: 'quantity_available', type: 'number' },
                     { label: 'Rate Markup %', key: 'rate_markup', type: 'number', hint: 'Added % on top of sale price for this item' },
-                    { label: `Shipping Cost (${currency})`, key: 'shipping_cost', type: 'number', hint: 'Overrides postage in profit calculations' },
+                    { label: `Shipping Cost (${currency})`, key: 'shipping_cost', type: 'number', hint: 'Used in profit calculations instead of eBay postage' },
                     { label: 'Tags (comma separated)', key: 'tags' },
                   ].map(f => (
                     <div key={f.key} className="form-group">
                       <label>{f.label}</label>
-                      <input type={f.type || 'text'} value={edit[f.key] || ''} onChange={e => setEdit(x => ({ ...x, [f.key]: e.target.value }))} />
+                      <input type={f.type || 'text'} value={edit[f.key] ?? ''} onChange={e => setEdit(x => ({ ...x, [f.key]: e.target.value }))} />
                       {f.hint && <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{f.hint}</p>}
                     </div>
                   ))}
@@ -452,8 +501,8 @@ export function InventoryPage() {
                   {[
                     ['SKU', selected.sku],
                     ['Custom Label', selected.custom_label],
-                    ['Price', selected.display_price ? formatCurrency(selected.display_price, currency) : formatCurrency(selected.price, currency)],
-                    ['Cost', selected.cost_price ? formatCurrency(selected.cost_price, currency) : '—'],
+                    ['Price', selected.display_price ? formatCurrency(selected.display_price, currency) : selected.price ? formatCurrency(selected.price, currency) : null],
+                    ['Cost', selected.cost_price ? formatCurrency(selected.cost_price, currency) : null],
                     ['Rate Markup', selected.rate_markup > 0 ? selected.rate_markup + '%' : null],
                     ['Shipping Override', selected.shipping_cost > 0 ? formatCurrency(selected.shipping_cost, currency) : null],
                     ['Stock', selected.quantity_available],
@@ -471,7 +520,7 @@ export function InventoryPage() {
               )}
               {detail?.sales?.length > 0 && (
                 <>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: 4 }}>SALES HISTORY</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: 16, marginBottom: 8 }}>SALES HISTORY</div>
                   <table className="data-table" style={{ fontSize: 11 }}>
                     <thead><tr><th>Order</th><th>Date</th><th>Qty</th><th>Total</th><th>Buyer</th></tr></thead>
                     <tbody>

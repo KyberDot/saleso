@@ -129,7 +129,13 @@ export default function StatsPage() {
                 { label: 'Total Orders', value: formatNumber(totals.orders) },
                 { label: 'Total Items Sold', value: formatNumber(totals.items_sold) },
                 { label: 'Total eBay Fees', value: formatCurrency(totals.fees, currency) },
-                { label: 'Best Month', value: bestMonth ? bestMonth.month : '—', sub: bestMonth ? formatCurrency(bestMonth.gross_revenue, currency) : '' },
+                { label: 'Best Month', value: bestMonth ? (() => {
+          // bestMonth.month is like "2026-03" - convert to "March 2026"
+          try {
+            const [y, m] = bestMonth.month.split('-')
+            return new Date(parseInt(y), parseInt(m)-1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+          } catch { return bestMonth.month }
+        })() : '—', sub: bestMonth ? formatCurrency(bestMonth.gross_revenue, currency) : '' },
                 { label: 'Avg Monthly Revenue', value: formatCurrency(avgMonthlyRevenue, currency) },
                 { label: 'Avg Order Value', value: formatCurrency(avgOrderValue, currency) },
               ].map(s => (

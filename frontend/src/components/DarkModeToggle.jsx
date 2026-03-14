@@ -18,17 +18,21 @@ export default function DarkModeToggle() {
         border: '1px solid var(--border-light)',
         cursor: 'pointer',
         fontSize: 17,
+        lineHeight: 1,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 200,
         boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
         transition: 'transform 0.15s, box-shadow 0.15s',
+        padding: 0,
       }}
       onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.1)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.4)' }}
       onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.3)' }}
     >
-      {darkMode ? '☀️' : '🌙'}
+      <span style={{ display: 'block', lineHeight: 1, marginTop: 0 }}>
+        {darkMode ? '☀️' : '🌙'}
+      </span>
     </button>
   )
 }

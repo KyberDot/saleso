@@ -7,7 +7,7 @@ import { useToast } from '../context/ToastContext'
 import { formatCurrency, formatNumber, formatDate } from '../utils/format'
 import SyncButton from '../components/SyncButton'
 
-const DAYS = [0, 7, 14, 30, 90]  // 0 = Today
+const DAYS = [0, 7, 14, 30, 90]
 
 const ChartTip = ({ active, payload, label, currency }) => {
   if (!active || !payload?.length) return null
@@ -35,11 +35,18 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const currency = user?.default_currency || 'GBP'
 
+  // Get first name from full_name, fallback to username
+  const firstName = user?.full_name
+    ? user.full_name.trim().split(' ')[0]
+    : user?.username || ''
+
   const load = async () => {
     setLoading(true)
     try {
+      const daysParam = days === 0 ? 1 : days
+      const todayParam = days === 0 ? 1 : 0
       const [sumRes, salesRes] = await Promise.all([
-        api.get(`/api/sales/summary?days=${days}`),
+        api.get(`/api/sales/summary?days=${daysParam}&today=${todayParam}`),
         api.get('/api/sales?limit=6'),
       ])
       setData(sumRes.data)
@@ -51,7 +58,17 @@ export default function Dashboard() {
   useEffect(() => { load() }, [days])
 
   const s = data.summary || {}
-  const markup = user?.rate_markup || 0
+
+  // Format X-axis labels — show Mon/Day only, no year
+  const formatXAxis = (val) => {
+    if (!val) return ''
+    // val is like "2026-03-14" or "Mar 14"
+    try {
+      const d = new Date(val)
+      if (isNaN(d)) return val
+      return d.toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })
+    } catch { return val }
+  }
 
   return (
     <div>
@@ -59,8 +76,7 @@ export default function Dashboard() {
         <div>
           <h2 style={{ fontSize: 18, marginBottom: 2 }}>🏠 Dashboard</h2>
           <p style={{ color: 'var(--text-muted)', fontSize: 12 }}>
-            Welcome back, {user?.username}
-            {markup > 0 && <span style={{ color: 'var(--accent)', marginLeft: 8 }}>+{markup}% markup active</span>}
+            Welcome back, <span style={{ color: 'var(--text)', fontWeight: 600 }}>{firstName}!</span>
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -83,7 +99,7 @@ export default function Dashboard() {
             { label: 'Net Profit', value: formatCurrency(s.net_profit, currency), sub: 'After fees & postage', color: s.net_profit > 0 ? 'var(--green)' : 'var(--red)' },
             { label: 'Items Sold', value: formatNumber(s.total_items_sold), sub: `Avg ${formatCurrency(s.avg_order_value, currency)}` },
             { label: 'eBay Fees', value: formatCurrency(s.total_fees, currency), sub: 'Est. 10%' },
-            { label: 'Unique Buyers', value: formatNumber(s.unique_buyers), sub: `Last ${days} days` },
+            { label: 'Unique Buyers', value: formatNumber(s.unique_buyers), sub: days === 0 ? 'Today' : `Last ${days} days` },
           ].map(stat => (
             <div key={stat.label} className="stat-card" style={{ borderColor: stat.accent ? 'var(--accent)' : undefined }}>
               <div className="stat-label">{stat.label}</div>
@@ -96,11 +112,12 @@ export default function Dashboard() {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20, marginBottom: 24 }}>
+          {/* Revenue chart */}
           <div className="card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <h3 style={{ fontSize: 12, fontFamily: 'var(--font-mono)' }}>REVENUE — LAST {days} DAYS</h3>
-            </div>
-            {data.dailySales.length > 0 ? (
+            <h3 style={{ fontSize: 12, fontFamily: 'var(--font-mono)', marginBottom: 20 }}>
+              REVENUE — {days === 0 ? 'TODAY' : `LAST ${days} DAYS`}
+            </h3>
+            {data.dailySales?.length > 0 ? (
               <ResponsiveContainer width="100%" height={200}>
                 <AreaChart data={data.dailySales}>
                   <defs>
@@ -109,7 +126,14 @@ export default function Dashboard() {
                       <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="day" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickLine={false} axisLine={false} />
+                  <XAxis
+                    dataKey="day"
+                    tick={{ fill: 'var(--text-muted)', fontSize: 10 }}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={formatXAxis}
+                    interval="preserveStartEnd"
+                  />
                   <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={v => formatCurrency(v, currency)} />
                   <Tooltip content={<ChartTip currency={currency} />} />
                   <Area type="monotone" dataKey="revenue" name="Revenue" stroke="var(--accent)" strokeWidth={2} fill="url(#rg)" />
@@ -122,31 +146,34 @@ export default function Dashboard() {
             )}
           </div>
 
-          <div className="card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          {/* Top sellers — first 4 visible, rest scrollable */}
+          <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <h3 style={{ fontSize: 12, fontFamily: 'var(--font-mono)' }}>TOP SELLERS</h3>
               <Link to="/inventory" style={{ fontSize: 11, color: 'var(--accent)', textDecoration: 'none' }}>All →</Link>
             </div>
-            {data.topItems.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {data.topItems.slice(0, 6).map((item, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: i < 5 ? '1px solid var(--border)' : 'none' }}>
-                    <div style={{ width: 22, height: 22, borderRadius: 5, background: i === 0 ? 'var(--accent)' : 'var(--bg-card2)', color: i === 0 ? '#000' : 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: 'var(--font-mono)', fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.item_title || item.sku || 'Unknown'}</div>
-                      {item.sku && <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{item.sku}</div>}
-                    </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{item.total_sold}</div>
-                      <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>sold</div>
-                    </div>
+            {data.topItems?.length > 0 ? (
+              <>
+                {/* First 4 always visible */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {data.topItems.slice(0, 4).map((item, i) => (
+                    <TopSellerRow key={i} item={item} i={i} currency={currency} />
+                  ))}
+                </div>
+                {/* Rest scrollable */}
+                {data.topItems.length > 4 && (
+                  <div style={{ marginTop: 4, maxHeight: 120, overflowY: 'auto', borderTop: '1px solid var(--border)', paddingTop: 4 }}>
+                    {data.topItems.slice(4).map((item, i) => (
+                      <TopSellerRow key={i + 4} item={item} i={i + 4} currency={currency} />
+                    ))}
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             ) : <div className="empty-state" style={{ padding: '30px 0' }}><p>No items yet</p></div>}
           </div>
         </div>
 
+        {/* Recent sales */}
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <h3 style={{ fontSize: 12, fontFamily: 'var(--font-mono)' }}>RECENT SALES</h3>
@@ -162,7 +189,7 @@ export default function Dashboard() {
                     <td><span className="mono" style={{ fontSize: 11, color: 'var(--accent)', background: 'var(--bg-card2)', padding: '2px 6px', borderRadius: 4 }}>{sale.sku || sale.custom_label || '—'}</span></td>
                     <td style={{ fontSize: 12 }}>{sale.buyer_username || '—'}</td>
                     <td style={{ fontSize: 11, color: 'var(--text-muted)' }}>{formatDate(sale.sale_date)}</td>
-                    <td className="mono" style={{ fontWeight: 700 }}>{formatCurrency(sale.display_price || sale.total_price, sale.currency || currency)}</td>
+                    <td className="mono" style={{ fontWeight: 700 }}>{formatCurrency(sale.display_price || sale.total_price, currency)}</td>
                     <td className="mono" style={{ color: (sale.display_net || sale.net_profit) > 0 ? 'var(--green)' : 'var(--red)', fontSize: 12 }}>{formatCurrency(sale.display_net || sale.net_profit, currency)}</td>
                   </tr>
                 ))}
@@ -176,6 +203,22 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+function TopSellerRow({ item, i, currency }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid var(--border)' }}>
+      <div style={{ width: 20, height: 20, borderRadius: 5, background: i === 0 ? 'var(--accent)' : 'var(--bg-card2)', color: i === 0 ? '#000' : 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontFamily: 'var(--font-mono)', fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.item_title || item.sku || 'Unknown'}</div>
+        {item.sku && <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{item.sku}</div>}
+      </div>
+      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }}>{item.total_sold}</div>
+        <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>sold</div>
       </div>
     </div>
   )

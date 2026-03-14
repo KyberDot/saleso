@@ -153,22 +153,11 @@ export default function Dashboard() {
               <Link to="/inventory" style={{ fontSize: 11, color: 'var(--accent)', textDecoration: 'none' }}>All →</Link>
             </div>
             {data.topItems?.length > 0 ? (
-              <>
-                {/* First 4 always visible */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {data.topItems.slice(0, 4).map((item, i) => (
-                    <TopSellerRow key={i} item={item} i={i} currency={currency} />
-                  ))}
-                </div>
-                {/* Rest scrollable */}
-                {data.topItems.length > 4 && (
-                  <div style={{ marginTop: 4, maxHeight: 120, overflowY: 'auto', borderTop: '1px solid var(--border)', paddingTop: 4 }}>
-                    {data.topItems.slice(4).map((item, i) => (
-                      <TopSellerRow key={i + 4} item={item} i={i + 4} currency={currency} />
-                    ))}
-                  </div>
-                )}
-              </>
+              <div style={{ overflowY: 'auto', maxHeight: 280 }}>
+                {data.topItems.map((item, i) => (
+                  <TopSellerRow key={i} item={item} i={i} currency={currency} />
+                ))}
+              </div>
             ) : <div className="empty-state" style={{ padding: '30px 0' }}><p>No items yet</p></div>}
           </div>
         </div>

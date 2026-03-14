@@ -86,7 +86,7 @@ export default function LoginPage() {
 
         <div style={{ textAlign: 'center', marginTop: 16, display: 'flex', flexDirection: 'column', gap: 6 }}>
           <Link to="/forgot-password" style={{ fontSize: 12, color: 'var(--text-muted)', textDecoration: 'none' }}>Forgot your password?</Link>
-          <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Need access? Contact your administrator.</p>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Need access? <a href={`mailto:${settings.support_email || 'support@saleso.app'}`} style={{ color: 'var(--accent)', textDecoration: 'none' }}>{settings.support_email || 'support@saleso.app'}</a></p>
         </div>
       </div>
       <DarkModeToggle />

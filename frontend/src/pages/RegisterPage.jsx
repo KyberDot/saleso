@@ -5,12 +5,13 @@ import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { useSite } from '../context/SiteContext'
 import { API_BASE } from '../utils/api'
+import DarkModeToggle from '../components/DarkModeToggle'
 
 export default function RegisterPage() {
   const [searchParams] = useSearchParams()
   const { checkAuth } = useAuth()
   const { toast } = useToast()
-  const { settings } = useSite()
+  const { settings, darkMode } = useSite()
   const navigate = useNavigate()
   const token = searchParams.get('token')
   const fileRef = useRef()
@@ -43,7 +44,6 @@ export default function RegisterPage() {
     reader.readAsDataURL(file)
   }
 
-  // Auto-generate username from full name
   const handleFullNameChange = (e) => {
     const name = e.target.value
     setFullName(name)
@@ -59,17 +59,12 @@ export default function RegisterPage() {
     if (password.length < 8) return toast('Password must be at least 8 characters', 'error')
     setLoading(true)
     try {
-      const res = await api.post('/api/auth/register', { token, username, password, full_name: fullName })
-      
-      // Upload avatar if selected
+      await api.post('/api/auth/register', { token, username, password, full_name: fullName })
       if (avatarFile) {
         const form = new FormData()
         form.append('avatar', avatarFile)
-        try {
-          await api.post('/api/users/me/avatar', form, { headers: { 'Content-Type': 'multipart/form-data' } })
-        } catch (e) { /* avatar upload failing shouldn't block registration */ }
+        try { await api.post('/api/users/me/avatar', form, { headers: { 'Content-Type': 'multipart/form-data' } }) } catch {}
       }
-
       await checkAuth()
       toast('Welcome to ' + (settings.site_name || 'SalesO') + '!', 'success')
       navigate('/', { replace: true })
@@ -79,22 +74,32 @@ export default function RegisterPage() {
   }
 
   const siteName = settings.site_name || 'SalesO'
-  const logoUrl = settings.site_logo_dark ? `${API_BASE}${settings.site_logo_dark}` :
-                  settings.site_logo ? `${API_BASE}${settings.site_logo}` : null
-  const logoWidth = settings.logo_width || '200'
-  const logoHeight = settings.logo_height || '60'
+  const showText = settings.login_show_text !== 'false'
+  const supportEmail = settings.support_email || 'support@saleso.app'
+  const logoWidth = settings.login_logo_width || settings.logo_width || '160'
+  const logoHeight = settings.login_logo_height || settings.logo_height || '48'
+
+  const logoUrl = darkMode
+    ? (settings.site_logo_dark ? `${API_BASE}${settings.site_logo_dark}` : settings.site_logo ? `${API_BASE}${settings.site_logo}` : null)
+    : (settings.site_logo_light ? `${API_BASE}${settings.site_logo_light}` : settings.site_logo ? `${API_BASE}${settings.site_logo}` : null)
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div className="fade-in" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: '48px 40px', width: '100%', maxWidth: 460 }}>
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, position: 'relative' }}>
+      <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px)', backgroundSize: '60px 60px', opacity: 0.3 }} />
+
+      <div className="fade-in" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, padding: '32px 32px', width: '100%', maxWidth: 460, position: 'relative', zIndex: 1 }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
           {logoUrl ? (
-            <img src={logoUrl} alt={siteName} style={{ maxWidth: logoWidth + 'px', maxHeight: logoHeight + 'px', objectFit: 'contain', marginBottom: 16 }} />
+            <img src={logoUrl} alt={siteName} style={{ maxWidth: logoWidth + 'px', maxHeight: logoHeight + 'px', objectFit: 'contain', marginBottom: showText ? 10 : 0 }} />
           ) : (
-            <div style={{ width: 56, height: 56, background: 'linear-gradient(135deg, var(--accent), var(--accent-dim))', borderRadius: 14, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, marginBottom: 16 }}>📦</div>
+            <div style={{ width: 52, height: 52, background: 'linear-gradient(135deg, var(--accent), var(--accent-dim))', borderRadius: 13, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, marginBottom: showText ? 10 : 0 }}>📦</div>
           )}
-          <h1 style={{ fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 700, marginBottom: 6 }}>{siteName}</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Create your account</p>
+          {showText && (
+            <>
+              <h1 style={{ fontFamily: 'var(--font-mono)', fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{siteName}</h1>
+              <p style={{ color: 'var(--text-muted)', fontSize: 12 }}>Create your account</p>
+            </>
+          )}
         </div>
 
         {checking ? (
@@ -109,30 +114,15 @@ export default function RegisterPage() {
           </div>
         ) : (
           <>
-            <div style={{ background: 'rgba(34,197,94,0.05)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 8, padding: '12px 14px', marginBottom: 24, fontSize: 12, color: 'var(--green)' }}>
+            <div style={{ background: 'rgba(34,197,94,0.05)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 8, padding: '10px 14px', marginBottom: 20, fontSize: 12, color: 'var(--green)' }}>
               ✓ Valid invitation for <strong>{inviteInfo?.email}</strong>
             </div>
 
-            {/* Avatar picker */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
-              <div
-                onClick={() => fileRef.current?.click()}
-                style={{
-                  width: 72, height: 72, borderRadius: '50%',
-                  background: avatarPreview ? 'transparent' : 'var(--bg-card2)',
-                  border: '2px dashed var(--border-light)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', overflow: 'hidden', flexShrink: 0,
-                  transition: 'border-color 0.15s',
-                }}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 18 }}>
+              <div onClick={() => fileRef.current?.click()} style={{ width: 64, height: 64, borderRadius: '50%', background: avatarPreview ? 'transparent' : 'var(--bg-card2)', border: '2px dashed var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', flexShrink: 0, transition: 'border-color 0.15s' }}
                 onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
-                onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-light)'}
-              >
-                {avatarPreview ? (
-                  <img src={avatarPreview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  <span style={{ fontSize: 28 }}>📷</span>
-                )}
+                onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-light)'}>
+                {avatarPreview ? <img src={avatarPreview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 24 }}>📷</span>}
               </div>
               <input type="file" ref={fileRef} onChange={handleAvatarChange} accept="image/*" style={{ display: 'none' }} />
               <div>
@@ -166,13 +156,17 @@ export default function RegisterPage() {
                   <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="Repeat password" />
                 </div>
               </div>
-              <button type="submit" className="btn btn-primary btn-lg" disabled={loading} style={{ width: '100%', justifyContent: 'center', marginTop: 4 }}>
-                {loading ? <><span className="spinner" style={{ width: 16, height: 16 }} />Creating account…</> : 'Create Account'}
+              <button type="submit" className="btn btn-primary" disabled={loading} style={{ width: '100%', justifyContent: 'center', padding: '10px', marginTop: 2 }}>
+                {loading ? <><span className="spinner" style={{ width: 15, height: 15 }} />Creating account…</> : 'Create Account'}
               </button>
             </form>
+            <p style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-muted)', marginTop: 14 }}>
+              Issues? <a href={`mailto:${supportEmail}`} style={{ color: 'var(--accent)', textDecoration: 'none' }}>{supportEmail}</a>
+            </p>
           </>
         )}
       </div>
+      <DarkModeToggle />
     </div>
   )
 }

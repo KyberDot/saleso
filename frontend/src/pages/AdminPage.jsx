@@ -423,6 +423,12 @@ function AppearanceTab({ toast, loadSettings }) {
           <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Clicking the logo in the sidebar opens this URL</p>
         </div>
 
+        <div className="form-group">
+          <label>Support Email</label>
+          <input value={settings.support_email || ''} onChange={e => setSettings(x => ({ ...x, support_email: e.target.value }))} placeholder="support@saleso.app" />
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Shown on login, register, and password reset pages</p>
+        </div>
+
         {/* Favicon */}
         <div>
           <label>Favicon</label>

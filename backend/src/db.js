@@ -161,6 +161,7 @@ const defaultSettings = {
   login_logo_width: '200',
   login_logo_height: '60',
   site_url: 'https://saleso.app',
+  support_email: 'support@saleso.app',
   site_favicon: '',
   username_color: '#e6a817',
   sidebar_show_text: 'true',

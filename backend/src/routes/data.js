@@ -97,6 +97,7 @@ inventoryRouter.post('/sync', requireAuth, requireEbay, async (req, res) => {
     const orderItems = db.prepare('SELECT DISTINCT item_id, item_title, sku, custom_label FROM sales WHERE user_id = ?').all(req.user.id);
     for (const oi of orderItems) {
       if (!oi.item_id) continue;
+      const exists = db.prepare('SELECT id FROM tracked_items WHERE user_id = ? AND item_id = ?').get(req.user.id, oi.item_id);
       if (!exists) {
         // Get price from most recent sale of this item
         const lastSale = db.prepare('SELECT sale_price, quantity FROM sales WHERE user_id = ? AND item_id = ? ORDER BY sale_date DESC LIMIT 1').get(req.user.id, oi.item_id);

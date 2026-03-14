@@ -145,7 +145,7 @@ router.patch('/settings', requireAdmin, (req, res) => {
     'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from', 'smtp_secure',
     'logo_width', 'logo_height', 'username_color',
     'sidebar_show_text', 'login_show_text', 'dark_mode_default',
-    'login_logo_width', 'login_logo_height', 'site_url'
+    'login_logo_width', 'login_logo_height', 'site_url', 'support_email'
   ];
 
   const update = db.prepare(`INSERT OR REPLACE INTO site_settings (key, value, updated_at) VALUES (?, ?, strftime('%s', 'now'))`);

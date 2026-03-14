@@ -16,17 +16,14 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const UPLOADS_DIR = db.UPLOADS_DIR;
 
+// Public folder where frontend build is copied
+const PUBLIC_DIR = path.join(__dirname, '../public');
+
 app.set('trust proxy', 1);
 
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
-
-const allowedOrigins = [
-  process.env.FRONTEND_URL || 'http://localhost:3000',
-  'http://localhost:3000',
-  'http://localhost:5173',
-];
 
 app.use(cors({
   origin: (origin, cb) => cb(null, true),
@@ -37,13 +34,18 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'saleso-change-this-secret',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, httpOnly: true, maxAge: 7 * 24 * 60 * 60 * 1000 }
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'lax'
+  }
 }));
 
 // Serve uploads
 app.use('/uploads', express.static(UPLOADS_DIR));
 
-// Routes
+// API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/admin', adminRoutes);
@@ -52,7 +54,7 @@ app.use('/api/inventory', inventoryRouter);
 app.use('/api/orders', ordersRouter);
 app.use('/api/stats', statsRouter);
 
-// Public site settings (colors, name, logo) - no auth required
+// Public site settings
 app.get('/api/site', (req, res) => {
   const rows = db.prepare('SELECT key, value FROM site_settings').all();
   const settings = {};
@@ -62,9 +64,19 @@ app.get('/api/site', (req, res) => {
   res.json({ settings });
 });
 
-// Health
+// Health check
 app.get('/health', (req, res) => res.json({ status: 'ok', app: 'SalesO', version: '2.0.0' }));
 
+// Serve frontend static files
+app.use(express.static(PUBLIC_DIR));
+
+// SPA fallback - all non-API routes serve index.html
+app.get('*', (req, res) => {
+  res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
+});
+
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`🚀 SalesO Backend running on port ${PORT}`);
+  console.log(`🚀 SalesO running on port ${PORT}`);
+  console.log(`   Frontend: served from ${PUBLIC_DIR}`);
+  console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
 });

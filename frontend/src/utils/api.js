@@ -1,8 +1,13 @@
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+// In production, frontend is served by the same server as the API
+// so we use relative URLs - no domain needed
+const API_BASE = import.meta.env.VITE_API_URL || ''
 
-const api = axios.create({ baseURL: API_URL, withCredentials: true })
+const api = axios.create({
+  baseURL: API_BASE,
+  withCredentials: true,
+})
 
 api.interceptors.response.use(
   r => r,
@@ -13,4 +18,4 @@ api.interceptors.response.use(
 )
 
 export default api
-export const API_BASE = API_URL
+export { API_BASE }

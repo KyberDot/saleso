@@ -1,43 +1,33 @@
+version: '3.8'
+
 services:
-  backend:
-    image: ghcr.io/${GITHUB_REPOSITORY:-yourusername/saleso}/backend:latest
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+
+  saleso:
+    image: ghcr.io/kyberdot/saleso:latest
+    container_name: saleso
+    restart: unless-stopped
+    mem_limit: 512mb
     ports:
-      - "127.0.0.1:3001:3001"
+      - "127.0.0.1:3820:3001"
     environment:
       - NODE_ENV=production
-      - PORT=3001
       - EBAY_CLIENT_ID=${EBAY_CLIENT_ID}
       - EBAY_CLIENT_SECRET=${EBAY_CLIENT_SECRET}
-      - EBAY_REDIRECT_URI=${EBAY_REDIRECT_URI:-https://saleso.vexyo.app/auth/ebay/callback}
-      - SESSION_SECRET=${SESSION_SECRET}
-      - FRONTEND_URL=${FRONTEND_URL:-https://saleso.vexyo.app}
-      - EBAY_ENV=${EBAY_ENV:-production}
+      - EBAY_REDIRECT_URI=${EBAY_REDIRECT_URI}
+      - EBAY_ENV=${EBAY_ENV}
+      - SESSION_SECRET=${SALESO_SESSION_SECRET}
+      - FRONTEND_URL=https://saleso.app
+      - EBAY_DELETION_TOKEN=${EBAY_DELETION_TOKEN}
+      - EBAY_DELETION_ENDPOINT=${EBAY_DELETION_ENDPOINT}
     volumes:
-      - saleso_data:/app/data
-      - saleso_uploads:/app/uploads
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - ./config/data:/app/data
+      - ./config/uploads:/app/uploads
+    networks:
+      - media-network
+      - authentik_secure
 
-  frontend:
-    image: ghcr.io/${GITHUB_REPOSITORY:-yourusername/saleso}/frontend:latest
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        - VITE_API_URL=${VITE_API_URL:-https://saleso.vexyo.app}
-    ports:
-      - "127.0.0.1:3820:80"
-    depends_on:
-      - backend
-    restart: unless-stopped
-
-volumes:
-  saleso_data:
-  saleso_uploads:
+networks:
+  media-network:
+    external: true
+  authentik_secure:
+    external: true

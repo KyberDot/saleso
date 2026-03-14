@@ -33,11 +33,25 @@ inventoryRouter.get('/', requireAuth, (req, res) => {
   const enriched = items.map(item => {
     const rs = db.prepare('SELECT SUM(quantity) as sold_30d, SUM(total_price) as revenue_30d FROM sales WHERE user_id = ? AND (sku = ? OR item_id = ?) AND sale_date >= ?')
       .get(user.id, item.sku || '', item.item_id, since30);
-    const itemMarkup = 1 + ((item.rate_markup || 0) / 100)
+    const itemMarkup = 1 + ((item.rate_markup || 0) / 100);
+
+    // If price is missing, get from most recent sale
+    let price = item.price;
+    if (!price || price === 0) {
+      const lastSale = db.prepare('SELECT sale_price FROM sales WHERE user_id = ? AND (sku = ? OR item_id = ?) ORDER BY sale_date DESC LIMIT 1')
+        .get(user.id, item.sku || '', item.item_id);
+      price = lastSale?.sale_price || null;
+    }
+
+    // If quantity_available is null, compute from total sold
+    let qty = item.quantity_available;
+
     return {
       ...item,
+      price: price,
       currency: user.default_currency || item.currency,
-      display_price: item.price ? item.price * itemMarkup : null,
+      display_price: price ? price * itemMarkup : null,
+      quantity_available: qty,
       sold_30d: rs?.sold_30d || 0,
       revenue_30d: rs?.revenue_30d ? rs.revenue_30d * itemMarkup : 0,
     };

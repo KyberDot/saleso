@@ -3,7 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, L
 import api from '../utils/api'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
-import { formatCurrency, formatNumber, formatDate } from '../utils/format'
+import { formatCurrency, formatNumber } from '../utils/format'
 
 const QUICK_RANGES = [
   { label: '7d', days: 7 },
@@ -13,6 +13,25 @@ const QUICK_RANGES = [
   { label: 'Custom', days: null },
 ]
 
+function SectionDivider({ label }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+      <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text-muted)', letterSpacing: '0.1em', whiteSpace: 'nowrap' }}>{label}</div>
+      <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+    </div>
+  )
+}
+
+function StatBox({ label, value, sub, accent, color, small }) {
+  return (
+    <div className="stat-card" style={{ borderColor: accent ? 'var(--accent)' : undefined }}>
+      <div className="stat-label">{label}</div>
+      <div className="stat-value" style={{ color: color || (accent ? 'var(--accent)' : undefined), fontSize: small ? 16 : 20 }}>{value}</div>
+      {sub && <div className="stat-sub">{sub}</div>}
+    </div>
+  )
+}
+
 const ChartTip = ({ active, payload, label, currency }) => {
   if (!active || !payload?.length) return null
   return (
@@ -21,13 +40,21 @@ const ChartTip = ({ active, payload, label, currency }) => {
       {payload.map(p => (
         <div key={p.dataKey} style={{ color: p.color, display: 'flex', gap: 12, justifyContent: 'space-between', marginBottom: 2 }}>
           <span>{p.name}</span>
-          <span style={{ fontWeight: 700, marginLeft: 16 }}>
+          <span style={{ fontWeight: 700 }}>
             {['gross_revenue','net_profit','fees','revenue'].includes(p.dataKey) ? formatCurrency(p.value, currency) : formatNumber(p.value)}
           </span>
         </div>
       ))}
     </div>
   )
+}
+
+function monthName(str) {
+  if (!str) return '—'
+  try {
+    const [y, m] = str.split('-')
+    return new Date(parseInt(y), parseInt(m) - 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+  } catch { return str }
 }
 
 export default function StatsPage() {
@@ -60,11 +87,9 @@ export default function StatsPage() {
     load()
   }, [])
 
-  useEffect(() => {
-    loadRangeSummary()
-  }, [activeRange])
+  useEffect(() => { if (!showCustom) loadRange() }, [activeRange])
 
-  const loadRangeSummary = async (from, to) => {
+  const loadRange = async (from, to) => {
     try {
       const params = {}
       if (from && to) {
@@ -74,7 +99,7 @@ export default function StatsPage() {
         params.days = activeRange
       }
       const res = await api.get('/api/sales/summary', { params })
-      setRangeSummary(res.data.summary)
+      setRangeSummary(res.data.summary || {})
       setRangeDaily(res.data.dailySales || [])
     } catch {}
   }
@@ -87,7 +112,7 @@ export default function StatsPage() {
   const handleCustomApply = () => {
     if (!customFrom || !customTo) return
     setShowCustom(false)
-    loadRangeSummary(customFrom, customTo)
+    loadRange(customFrom, customTo)
   }
 
   const totals = monthly.reduce((acc, m) => ({
@@ -104,6 +129,8 @@ export default function StatsPage() {
 
   const avgMonthlyRevenue = monthly.length > 0 ? totals.gross_revenue / monthly.length : 0
   const avgOrderValue = totals.orders > 0 ? totals.gross_revenue / totals.orders : 0
+  const profitMargin = totals.gross_revenue > 0 ? ((totals.net_profit / totals.gross_revenue) * 100).toFixed(1) : '0.0'
+  const avgItemsPerOrder = totals.orders > 0 ? (totals.items_sold / totals.orders).toFixed(1) : '0'
 
   const rs = rangeSummary || {}
 
@@ -121,41 +148,37 @@ export default function StatsPage() {
           <div style={{ textAlign: 'center', padding: 60 }}><span className="spinner" style={{ width: 32, height: 32 }} /></div>
         ) : (
           <>
-            {/* All-time stats — 8 boxes */}
-            <div className="stats-grid" style={{ marginBottom: 24 }}>
-              {[
-                { label: 'All-Time Revenue', value: formatCurrency(totals.gross_revenue, currency), accent: true },
-                { label: 'All-Time Net Profit', value: formatCurrency(totals.net_profit, currency), color: totals.net_profit > 0 ? 'var(--green)' : 'var(--red)' },
-                { label: 'Total Orders', value: formatNumber(totals.orders) },
-                { label: 'Total Items Sold', value: formatNumber(totals.items_sold) },
-                { label: 'Total eBay Fees', value: formatCurrency(totals.fees, currency) },
-                { label: 'Best Month', value: bestMonth ? (() => {
-          // bestMonth.month is like "2026-03" - convert to "March 2026"
-          try {
-            const [y, m] = bestMonth.month.split('-')
-            return new Date(parseInt(y), parseInt(m)-1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
-          } catch { return bestMonth.month }
-        })() : '—', sub: bestMonth ? formatCurrency(bestMonth.gross_revenue, currency) : '' },
-                { label: 'Avg Monthly Revenue', value: formatCurrency(avgMonthlyRevenue, currency) },
-                { label: 'Avg Order Value', value: formatCurrency(avgOrderValue, currency) },
-              ].map(s => (
-                <div key={s.label} className="stat-card" style={{ borderColor: s.accent ? 'var(--accent)' : undefined }}>
-                  <div className="stat-label">{s.label}</div>
-                  <div className="stat-value" style={{ color: s.color || (s.accent ? 'var(--accent)' : undefined), fontSize: 20 }}>{s.value}</div>
-                  {s.sub && <div className="stat-sub">{s.sub}</div>}
-                </div>
-              ))}
+            {/* ── OVERALL STATISTICS ── */}
+            <SectionDivider label="OVERALL STATISTICS" />
+            <div className="stats-grid" style={{ marginBottom: 28 }}>
+              <StatBox label="All-Time Revenue" value={formatCurrency(totals.gross_revenue, currency)} accent />
+              <StatBox label="All-Time Net Profit" value={formatCurrency(totals.net_profit, currency)} color={totals.net_profit > 0 ? 'var(--green)' : 'var(--red)'} />
+              <StatBox label="Total Orders" value={formatNumber(totals.orders)} />
+              <StatBox label="Total Items Sold" value={formatNumber(totals.items_sold)} />
+              <StatBox label="Total eBay Fees" value={formatCurrency(totals.fees, currency)} />
+              <StatBox label="Best Month" value={monthName(bestMonth?.month)} sub={bestMonth ? formatCurrency(bestMonth.gross_revenue, currency) : ''} small />
+              <StatBox label="Avg Monthly Revenue" value={formatCurrency(avgMonthlyRevenue, currency)} />
+              <StatBox label="Avg Order Value" value={formatCurrency(avgOrderValue, currency)} />
+              <StatBox label="Profit Margin" value={profitMargin + '%'} color={parseFloat(profitMargin) > 0 ? 'var(--green)' : 'var(--red)'} />
+              <StatBox label="Avg Items / Order" value={avgItemsPerOrder} />
             </div>
 
-            {/* Date range selector */}
+            {/* ── FILTERED STATISTICS ── */}
+            <SectionDivider label="FILTERED STATISTICS" />
+
+            {/* Range selector */}
             <div className="card" style={{ marginBottom: 20, padding: '16px 20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>RANGE:</span>
-                <div style={{ display: 'flex', gap: 4, background: 'var(--bg-card2)', borderRadius: 8, padding: 3, border: '1px solid var(--border)' }}>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap' }}>DATE RANGE:</span>
+                <div style={{ display: 'flex', gap: 3, background: 'var(--bg-card2)', borderRadius: 8, padding: 3, border: '1px solid var(--border)' }}>
                   {QUICK_RANGES.map(r => (
                     <button key={r.label} className="btn btn-sm"
                       onClick={() => handleRangeSelect(r.days)}
-                      style={{ background: (!showCustom && activeRange === r.days) || (showCustom && r.days === null) ? 'var(--accent)' : 'transparent', color: (!showCustom && activeRange === r.days) || (showCustom && r.days === null) ? '#000' : 'var(--text-muted)', border: 'none', fontFamily: 'var(--font-mono)' }}>
+                      style={{
+                        background: (!showCustom && activeRange === r.days) || (showCustom && r.days === null) ? 'var(--accent)' : 'transparent',
+                        color: (!showCustom && activeRange === r.days) || (showCustom && r.days === null) ? '#000' : 'var(--text-muted)',
+                        border: 'none', fontFamily: 'var(--font-mono)'
+                      }}>
                       {r.label}
                     </button>
                   ))}
@@ -170,25 +193,16 @@ export default function StatsPage() {
                 )}
               </div>
 
-              {/* Range stats — 4 boxes */}
-              {rs.total_orders !== undefined && (
-                <div className="stats-grid" style={{ marginTop: 16 }}>
-                  {[
-                    { label: showCustom ? 'Period Revenue' : `${activeRange}d Revenue`, value: formatCurrency(rs.gross_revenue, currency), accent: true },
-                    { label: 'Period Net Profit', value: formatCurrency(rs.net_profit, currency), color: rs.net_profit > 0 ? 'var(--green)' : 'var(--red)' },
-                    { label: 'Orders', value: formatNumber(rs.total_orders) },
-                    { label: 'Unique Buyers', value: formatNumber(rs.unique_buyers) },
-                  ].map(s => (
-                    <div key={s.label} className="stat-card" style={{ borderColor: s.accent ? 'var(--accent)' : undefined, padding: '14px 16px' }}>
-                      <div className="stat-label">{s.label}</div>
-                      <div className="stat-value" style={{ color: s.color || (s.accent ? 'var(--accent)' : undefined), fontSize: 18 }}>{s.value}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              {/* 4 filtered stat boxes */}
+              <div className="stats-grid" style={{ marginTop: 16, gridTemplateColumns: 'repeat(4, 1fr)' }}>
+                <StatBox label={showCustom ? 'Period Revenue' : `${activeRange}d Revenue`} value={formatCurrency(rs.gross_revenue, currency)} accent />
+                <StatBox label="Period Net Profit" value={formatCurrency(rs.net_profit, currency)} color={(rs.net_profit || 0) > 0 ? 'var(--green)' : 'var(--red)'} />
+                <StatBox label="Orders" value={formatNumber(rs.total_orders)} />
+                <StatBox label="Unique Buyers" value={formatNumber(rs.unique_buyers)} />
+              </div>
             </div>
 
-            {/* Range daily chart */}
+            {/* Filtered daily chart */}
             {rangeDaily.length > 0 && (
               <div className="card" style={{ marginBottom: 20 }}>
                 <h3 style={{ fontSize: 12, fontFamily: 'var(--font-mono)', marginBottom: 20 }}>DAILY REVENUE — SELECTED RANGE</h3>
@@ -201,7 +215,8 @@ export default function StatsPage() {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                    <XAxis dataKey="day" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickLine={false} axisLine={false} />
+                    <XAxis dataKey="day" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickLine={false} axisLine={false}
+                      tickFormatter={v => { try { const d = new Date(v); return d.toLocaleDateString('en-GB', { month: 'short', day: 'numeric' }) } catch { return v } }} />
                     <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={v => formatCurrency(v, currency)} />
                     <Tooltip content={<ChartTip currency={currency} />} />
                     <Area type="monotone" dataKey="revenue" name="Revenue" stroke="var(--accent)" strokeWidth={2} fill="url(#rg2)" />
@@ -210,14 +225,15 @@ export default function StatsPage() {
               </div>
             )}
 
-            {/* Monthly revenue chart */}
+            {/* Monthly bar chart */}
             <div className="card" style={{ marginBottom: 20 }}>
               <h3 style={{ fontSize: 12, fontFamily: 'var(--font-mono)', marginBottom: 20 }}>MONTHLY REVENUE & PROFIT</h3>
               {monthly.length > 0 ? (
                 <ResponsiveContainer width="100%" height={240}>
                   <BarChart data={monthly} barGap={4}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                    <XAxis dataKey="month" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickLine={false} axisLine={false} />
+                    <XAxis dataKey="month" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickLine={false} axisLine={false}
+                      tickFormatter={v => { try { const [y,m] = v.split('-'); return new Date(parseInt(y), parseInt(m)-1).toLocaleDateString('en-GB',{month:'short'}) } catch { return v } }} />
                     <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={v => formatCurrency(v, currency)} />
                     <Tooltip content={<ChartTip currency={currency} />} />
                     <Legend wrapperStyle={{ fontSize: 11, color: 'var(--text-muted)' }} />
@@ -228,19 +244,20 @@ export default function StatsPage() {
               ) : <div className="empty-state"><p>No data yet</p></div>}
             </div>
 
-            {/* Orders & items chart */}
+            {/* Monthly orders chart */}
             <div className="card" style={{ marginBottom: 20 }}>
               <h3 style={{ fontSize: 12, fontFamily: 'var(--font-mono)', marginBottom: 20 }}>MONTHLY ORDERS & ITEMS SOLD</h3>
               {monthly.length > 0 ? (
                 <ResponsiveContainer width="100%" height={200}>
                   <LineChart data={monthly}>
                     <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                    <XAxis dataKey="month" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickLine={false} axisLine={false} />
+                    <XAxis dataKey="month" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickLine={false} axisLine={false}
+                      tickFormatter={v => { try { const [y,m] = v.split('-'); return new Date(parseInt(y), parseInt(m)-1).toLocaleDateString('en-GB',{month:'short'}) } catch { return v } }} />
                     <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickLine={false} axisLine={false} />
                     <Tooltip content={<ChartTip currency={currency} />} />
                     <Legend wrapperStyle={{ fontSize: 11, color: 'var(--text-muted)' }} />
                     <Line type="monotone" dataKey="orders" name="Orders" stroke="var(--accent)" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="items_sold" name="Items Sold" stroke="var(--blue)" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="items_sold" name="Items Sold" stroke="var(--green)" strokeWidth={2} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               ) : <div className="empty-state"><p>No data yet</p></div>}
@@ -259,7 +276,7 @@ export default function StatsPage() {
                       const margin = m.gross_revenue > 0 ? ((m.net_profit / m.gross_revenue) * 100).toFixed(1) : 0
                       return (
                         <tr key={m.month} style={{ cursor: 'default' }}>
-                          <td className="mono" style={{ fontWeight: 700 }}>{m.month}</td>
+                          <td className="mono" style={{ fontWeight: 700 }}>{monthName(m.month)}</td>
                           <td className="mono">{formatNumber(m.orders)}</td>
                           <td className="mono">{formatNumber(m.items_sold)}</td>
                           <td className="mono" style={{ color: 'var(--accent)', fontWeight: 700 }}>{formatCurrency(m.gross_revenue, currency)}</td>

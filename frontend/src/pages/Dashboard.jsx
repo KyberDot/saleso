@@ -76,7 +76,7 @@ export default function Dashboard() {
         <div>
           <h2 style={{ fontSize: 18, marginBottom: 2 }}>🏠 Dashboard</h2>
           <p style={{ color: 'var(--text-muted)', fontSize: 12 }}>
-            Welcome back, <span style={{ color: 'var(--text)', fontWeight: 600 }}>{firstName}!</span>
+            Welcome back, {firstName}!
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -153,7 +153,7 @@ export default function Dashboard() {
               <Link to="/inventory" style={{ fontSize: 11, color: 'var(--accent)', textDecoration: 'none' }}>All →</Link>
             </div>
             {data.topItems?.length > 0 ? (
-              <div style={{ overflowY: 'auto', maxHeight: 280 }}>
+              <div style={{ overflowY: 'auto', maxHeight: 148 }}>
                 {data.topItems.map((item, i) => (
                   <TopSellerRow key={i} item={item} i={i} currency={currency} />
                 ))}

@@ -113,23 +113,38 @@ router.post('/sync', requireAuth, requireEbay, async (req, res) => {
         const totalPrice = parseFloat(order.pricingSummary?.total?.value || unitPrice * qty);
         const deliveryCost = parseFloat(order.pricingSummary?.deliveryCost?.value || 0);
         const ebayFees = totalPrice * 0.1;
-        // Look up item shipping cost override from inventory
-        const invItem = db.prepare('SELECT shipping_cost FROM tracked_items WHERE user_id = ? AND (item_id = ? OR sku = ?) LIMIT 1')
-          .get(req.user.id, item.legacyItemId || '', item.sku || '');
+        const sku = item.sku || item.properties?.customLabel || '';
+        // Look up item overrides from inventory
+        const invItem = db.prepare('SELECT shipping_cost, cost_price, rate_markup FROM tracked_items WHERE user_id = ? AND (item_id = ? OR sku = ?) LIMIT 1')
+          .get(req.user.id, item.legacyItemId || '', sku);
+        // Shipping: use item override if set, else eBay delivery cost
         const effectiveShipping = invItem?.shipping_cost > 0 ? invItem.shipping_cost : deliveryCost;
-        const netProfit = totalPrice - ebayFees - effectiveShipping;
-        const sku = item.sku || '';
+        // Ad rate: markup % charged as advertising cost
+        const adRateCost = invItem?.rate_markup > 0 ? (totalPrice * invItem.rate_markup / 100) : 0;
+        // Item cost (COGS)
+        const itemCost = invItem?.cost_price > 0 ? (invItem.cost_price * qty) : 0;
+        const netProfit = totalPrice - ebayFees - effectiveShipping - adRateCost - itemCost;
 
         insert.run(saleId, req.user.id, order.orderId, item.legacyItemId || '', item.title || '',
           sku, item.properties?.customLabel || sku, qty, unitPrice, totalPrice,
           item.lineItemCost?.currency || 'GBP', order.buyer?.username || '', saleDate,
           order.orderPaymentStatus || 'PAID', order.orderFulfillmentStatus || 'NOT_STARTED',
           '', order.fulfillmentStartInstructions?.[0]?.shippingStep?.shipTo?.contactAddress?.countryCode || '',
-          ebayFees, deliveryCost, netProfit, item.lineItemId);
+          ebayFees, effectiveShipping, netProfit, item.lineItemId);
         synced++;
       }
     }
 
+    // Auto-deduct stock for new sales
+    const recentSales = db.prepare('SELECT sku, item_id, SUM(quantity) as total_qty FROM sales WHERE user_id = ? AND sale_date >= ? GROUP BY COALESCE(NULLIF(sku,\'\'), item_id)').all(req.user.id, Date.now() - 7 * 24 * 60 * 60 * 1000);
+    for (const s of recentSales) {
+      if (!s.sku && !s.item_id) continue;
+      const invItem = db.prepare('SELECT id, quantity_available FROM tracked_items WHERE user_id = ? AND (sku = ? OR item_id = ?) LIMIT 1').get(req.user.id, s.sku || '', s.item_id || '');
+      if (invItem && invItem.quantity_available !== null && invItem.quantity_available > 0) {
+        const newQty = Math.max(0, invItem.quantity_available - s.total_qty);
+        db.prepare("UPDATE tracked_items SET quantity_available = ?, updated_at = strftime('%s','now') WHERE id = ?").run(newQty, invItem.id);
+      }
+    }
     db.prepare('INSERT INTO sync_log (id,user_id,sync_type,status,items_synced) VALUES (?,?,?,?,?)').run(uuidv4(), req.user.id, 'sales', 'success', synced);
     res.json({ success: true, synced });
   } catch (err) {

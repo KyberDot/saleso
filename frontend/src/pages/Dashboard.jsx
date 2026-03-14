@@ -153,19 +153,10 @@ export default function Dashboard() {
               <Link to="/inventory" style={{ fontSize: 11, color: 'var(--accent)', textDecoration: 'none' }}>All →</Link>
             </div>
             {data.topItems?.length > 0 ? (
-              <div>
-                {/* First 4 always shown */}
-                {data.topItems.slice(0, 4).map((item, i) => (
+              <div style={{ overflowY: 'auto', maxHeight: 220 }}>
+                {data.topItems.map((item, i) => (
                   <TopSellerRow key={i} item={item} i={i} />
                 ))}
-                {/* Rest in scrollable area - no gap between sections */}
-                {data.topItems.length > 4 && (
-                  <div style={{ maxHeight: 168, overflowY: 'auto' }}>
-                    {data.topItems.slice(4).map((item, i) => (
-                      <TopSellerRow key={i + 4} item={item} i={i + 4} />
-                    ))}
-                  </div>
-                )}
               </div>
             ) : <div className="empty-state" style={{ padding: '30px 0' }}><p>No items yet</p></div>}
           </div>
@@ -208,7 +199,7 @@ export default function Dashboard() {
 
 function TopSellerRow({ item, i }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--border)' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--border)', minHeight: 55 }}>
       <div style={{
         width: 22, height: 22, borderRadius: 6,
         background: i === 0 ? 'var(--accent)' : i === 1 ? 'var(--bg-card3)' : 'var(--bg-card2)',

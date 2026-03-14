@@ -30,14 +30,24 @@ router.get('/', requireAuth, (req, res) => {
   const sales = db.prepare(query).all(...params);
   const total = db.prepare('SELECT COUNT(*) as count FROM sales WHERE user_id = ?').get(user.id);
 
-  // Apply markup and shipping override to display
-  const enriched = sales.map(s => ({
-    ...s,
-    currency: user.default_currency || s.currency,
-    display_price: s.total_price ? s.total_price * markup : null,
-    display_shipping: shipping > 0 ? shipping : s.postage_cost,
-    display_net: s.total_price ? (s.total_price * markup) - s.ebay_fees - (shipping > 0 ? shipping : s.postage_cost) : null,
-  }));
+  // Apply markup to display price; use stored ad_rate_cost/item_cost for accurate net
+  const enriched = sales.map(s => {
+    const displayPrice = s.total_price ? s.total_price * markup : null;
+    const displayShipping = shipping > 0 ? shipping : s.postage_cost;
+    // Net = price - fees - shipping - ad rate cost - item cost
+    const adCost = s.ad_rate_cost || 0;
+    const cogsCost = s.item_cost || 0;
+    const displayNet = displayPrice
+      ? displayPrice - (s.ebay_fees || 0) - displayShipping - adCost - cogsCost
+      : null;
+    return {
+      ...s,
+      currency: user.default_currency || s.currency,
+      display_price: displayPrice,
+      display_shipping: displayShipping,
+      display_net: displayNet,
+    };
+  });
 
   res.json({ sales: enriched, total: total.count });
 });

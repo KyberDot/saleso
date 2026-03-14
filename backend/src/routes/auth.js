@@ -159,3 +159,66 @@ router.post('/ebay/disconnect', requireAuth, (req, res) => {
 });
 
 module.exports = router;
+
+// ── eBay Marketplace Account Deletion Notification ──────────────────────────
+// Required by eBay developer compliance
+// Register this URL in your eBay app settings:
+//   https://YOUR_DOMAIN/api/ebay/deletion-notification
+
+const crypto = require('crypto');
+
+// GET - eBay sends a challenge to verify endpoint ownership
+router.get('/ebay-deletion', (req, res) => {
+  const { challenge_code } = req.query;
+  if (!challenge_code) return res.status(400).json({ error: 'No challenge code' });
+
+  const verificationToken = process.env.EBAY_DELETION_TOKEN || 'saleso-deletion-verification-token';
+  const endpoint = (process.env.EBAY_DELETION_ENDPOINT || `${process.env.FRONTEND_URL}/api/ebay-deletion`);
+
+  // eBay requires: SHA256(challengeCode + verificationToken + endpoint)
+  const hash = crypto.createHash('sha256')
+    .update(challenge_code + verificationToken + endpoint)
+    .digest('hex');
+
+  res.json({ challengeResponse: hash });
+});
+
+// POST - eBay notifies when a user closes their eBay account
+router.post('/ebay-deletion', express.json(), (req, res) => {
+  const { notification } = req.body || {};
+  if (!notification) return res.status(400).json({ error: 'Invalid payload' });
+
+  const ebayUserId = notification?.data?.userId;
+  const username = notification?.data?.username;
+
+  if (ebayUserId || username) {
+    // Find and anonymise the user - keep sales data for records but remove personal info
+    try {
+      const user = db.prepare('SELECT id FROM users WHERE ebay_user_id = ? OR ebay_username = ?')
+        .get(ebayUserId || '', username || '');
+
+      if (user) {
+        // Disconnect eBay tokens and anonymise
+        db.prepare(`UPDATE users SET
+          ebay_user_id = NULL,
+          ebay_username = NULL,
+          ebay_access_token = NULL,
+          ebay_refresh_token = NULL,
+          ebay_token_expiry = NULL,
+          status = 'deleted',
+          updated_at = strftime('%s','now')
+          WHERE id = ?`).run(user.id);
+
+        // Anonymise sales data - remove buyer usernames
+        db.prepare(`UPDATE sales SET buyer_username = '[deleted]' WHERE user_id = ?`).run(user.id);
+
+        console.log(`eBay deletion notice processed for user: ${user.id}`);
+      }
+    } catch (err) {
+      console.error('Deletion handler error:', err.message);
+    }
+  }
+
+  // Always return 200 to acknowledge receipt
+  res.status(200).json({ acknowledged: true });
+});

@@ -462,7 +462,11 @@ export function InventoryPage() {
                             <td>{m != null ? <span className={`badge badge-${parseFloat(m) > 30 ? 'green' : parseFloat(m) > 0 ? 'yellow' : 'red'}`} style={{ fontSize: 10 }}>{m}%</span> : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>}</td>
                             <td className="mono" style={{ fontSize: 12, color: item.sold_30d > 0 ? 'var(--text)' : 'var(--text-muted)' }}>{item.sold_30d || 0}</td>
                             <td className="mono" style={{ fontSize: 12 }}>{item.revenue_30d ? formatCurrency(item.revenue_30d, currency) : '—'}</td>
-                            <td><span className={`badge badge-${item.listing_status === 'Active' || !item.listing_status ? 'green' : 'yellow'}`} style={{ fontSize: 10 }}>{item.listing_status || 'Active'}</span></td>
+                            <td>{(() => {
+                              const isOutOfStock = item.quantity_available !== null && item.quantity_available !== undefined && item.quantity_available === 0
+                              if (isOutOfStock) return <span className="badge badge-red" style={{ fontSize: 10 }}>Inactive</span>
+                              return <span className="badge badge-green" style={{ fontSize: 10 }}>{item.listing_status || 'Active'}</span>
+                            })()}</td>
                           </tr>
                         )
                       })}

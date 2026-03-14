@@ -30,17 +30,22 @@ export default function SyncButton({ onSync }) {
   }
 
   return (
-    <button className="btn btn-secondary" onClick={handleSync} disabled={syncing} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+    <button
+      className="btn btn-secondary"
+      onClick={handleSync}
+      disabled={syncing}
+      title="Sync eBay"
+      style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px' }}
+    >
       {syncing ? (
-        <><span className="spinner" style={{ width: 14, height: 14 }} />Syncing…</>
+        <span className="spinner" style={{ width: 15, height: 15 }} />
       ) : (
         <>
-          <span>🔄</span>
-          Sync
-          {ebayLogoUrl && (
-            <img src={ebayLogoUrl} alt="eBay" style={{ height: 16, width: 'auto', objectFit: 'contain', marginLeft: 2 }} />
-          )}
-          {!ebayLogoUrl && <span style={{ fontSize: 11, opacity: 0.7 }}>eBay</span>}
+          <span style={{ fontSize: 14 }}>🔄</span>
+          {ebayLogoUrl
+            ? <img src={ebayLogoUrl} alt="eBay" style={{ height: 15, width: 'auto', objectFit: 'contain' }} />
+            : <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>eBay</span>
+          }
         </>
       )}
     </button>

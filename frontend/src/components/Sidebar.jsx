@@ -28,7 +28,7 @@ export { Avatar }
 
 export default function Sidebar() {
   const { user, logout } = useAuth()
-  const { settings, darkMode, toggleDarkMode } = useSite()
+  const { settings, darkMode } = useSite()
   const navigate = useNavigate()
   const isAdmin = user?.role === 'admin'
   const [menuOpen, setMenuOpen] = useState(false)
@@ -151,14 +151,7 @@ export default function Sidebar() {
               >
                 <span>⚙</span> Settings
               </button>
-              <button
-                onClick={() => { setMenuOpen(false); toggleDarkMode() }}
-                style={{ width: '100%', padding: '11px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid var(--border)' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-card2)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'none'}
-              >
-                <span>{darkMode ? '☀️' : '🌙'}</span> {darkMode ? 'Light Mode' : 'Dark Mode'}
-              </button>
+
               <button
                 onClick={() => { setMenuOpen(false); logout() }}
                 style={{ width: '100%', padding: '11px 14px', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--red)', display: 'flex', alignItems: 'center', gap: 10 }}

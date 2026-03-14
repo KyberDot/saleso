@@ -23,9 +23,10 @@ export function AuthProvider({ children }) {
   }, [checkAuth])
 
   const login = async (email, password) => {
-    const res = await api.post('/api/auth/login', { email, password })
-    setUser(res.data.user)
-    return res.data
+    await api.post('/api/auth/login', { email, password })
+    // Always fetch full user from status endpoint so ebay_username
+    // and all other fields are included
+    await checkAuth()
   }
 
   const logout = async () => {

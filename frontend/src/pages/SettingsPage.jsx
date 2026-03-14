@@ -28,7 +28,6 @@ export default function SettingsPage() {
 
   // eBay state
   const [ebayConnecting, setEbayConnecting] = useState(false)
-  const [ebayConnected, setEbayConnected] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -36,17 +35,11 @@ export default function SettingsPage() {
       setUsername(user.username || '')
       setEmail(user.email || '')
       setCurrency(user.default_currency || 'GBP')
-      // Always sync eBay connection state from user object
-      setEbayConnected(!!user.ebay_username)
+      // eBay state read directly from user object
     }
   }, [user])
 
-  // Force re-check user from server when eBay tab is opened
-  useEffect(() => {
-    if (tab === 'ebay') {
-      checkAuth()
-    }
-  }, [tab])
+
 
   useEffect(() => {
     if (searchParams.get('ebay_success')) {
@@ -122,8 +115,7 @@ export default function SettingsPage() {
   const disconnectEbay = async () => {
     if (!confirm('Disconnect eBay? You will need to re-authorise to sync data.')) return
     await api.post('/api/auth/ebay/disconnect')
-    updateUser({ ebay_username: null, ebay_user_id: null })
-    setEbayConnected(false)
+    updateUser({ ebay_username: null, ebay_user_id: null, ebay_access_token: null })
     toast('eBay disconnected', 'success')
   }
 
@@ -134,7 +126,7 @@ export default function SettingsPage() {
     { id: 'password', label: '🔒 Password' },
   ]
 
-  const isConnected = ebayConnected || !!user?.ebay_username
+  const isConnected = !!user?.ebay_username
 
   return (
     <div>

@@ -11,12 +11,14 @@ import { SalesPage, OrdersPage, InventoryPage } from './pages/DataPages'
 import SettingsPage from './pages/SettingsPage'
 import AdminPage from './pages/AdminPage'
 import StatsPage from './pages/StatsPage'
+import DarkModeToggle from './components/DarkModeToggle'
 
 function AppLayout({ children }) {
   return (
     <div className="layout">
       <Sidebar />
       <main className="main-content">{children}</main>
+      <DarkModeToggle />
     </div>
   )
 }

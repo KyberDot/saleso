@@ -182,7 +182,7 @@ const faviconStorage = multer.diskStorage({
 });
 const faviconUpload = multer({ storage: faviconStorage, limits: { fileSize: 1 * 1024 * 1024 } });
 
-router.post('/settings/favicon', requireAdmin, faviconUpload.single('favicon'), (req, res) => {
+router.post('/settings/favicon', requireAdmin, faviconUpload.single('logo'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   const url = `/uploads/logo/${req.file.filename}`;
   db.prepare('INSERT OR REPLACE INTO site_settings (key, value) VALUES (?, ?)').run('site_favicon', url);

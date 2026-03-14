@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 import { useSite } from '../context/SiteContext'
 import { API_BASE } from '../utils/api'
+import DarkModeToggle from '../components/DarkModeToggle'
 
 export default function LoginPage() {
   const { login, user } = useAuth()
@@ -48,14 +49,7 @@ export default function LoginPage() {
       <div style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px)', backgroundSize: '60px 60px', opacity: 0.3 }} />
       <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%,-50%)', width: 500, height: 300, background: 'radial-gradient(ellipse, var(--accent-glow) 0%, transparent 70%)', pointerEvents: 'none' }} />
 
-      {/* Dark/light toggle — small, top right */}
-      <button
-        onClick={toggleDarkMode}
-        title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-        style={{ position: 'fixed', top: 14, right: 14, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}
-      >
-        {darkMode ? '☀️' : '🌙'}
-      </button>
+
 
       <div className="fade-in" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, padding: '32px 32px', width: '100%', maxWidth: 380, position: 'relative', zIndex: 1 }}>
 
@@ -95,6 +89,7 @@ export default function LoginPage() {
           <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Need access? Contact your administrator.</p>
         </div>
       </div>
+      <DarkModeToggle />
     </div>
   )
 }

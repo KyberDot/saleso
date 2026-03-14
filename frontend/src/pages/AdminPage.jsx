@@ -20,6 +20,7 @@ export default function AdminPage() {
   const tabs = [
     { id: 'users', label: '👥 Users' },
     { id: 'invites', label: '✉ Invitations' },
+    { id: 'plans', label: '📋 Plans' },
     { id: 'appearance', label: '🎨 Appearance' },
     { id: 'email', label: '📧 Email' },
   ]
@@ -41,6 +42,7 @@ export default function AdminPage() {
 
         {tab === 'users' && <UsersTab toast={toast} currentUserId={user?.id} />}
         {tab === 'invites' && <InvitesTab toast={toast} />}
+        {tab === 'plans' && <PlansTab toast={toast} />}
         {tab === 'appearance' && <AppearanceTab toast={toast} loadSettings={loadSettings} />}
         {tab === 'email' && <EmailTab toast={toast} />}
       </div>
@@ -52,14 +54,18 @@ export default function AdminPage() {
 
 function UsersTab({ toast, currentUserId }) {
   const [users, setUsers] = useState([])
+  const [plans, setPlans] = useState([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(null)
   const [newPw, setNewPw] = useState('')
 
   const load = async () => {
     setLoading(true)
-    try { const r = await api.get('/api/admin/users'); setUsers(r.data.users) }
-    catch { toast('Failed to load users', 'error') }
+    try {
+      const [userRes, planRes] = await Promise.all([api.get('/api/admin/users'), api.get('/api/plans')])
+      setUsers(userRes.data.users)
+      setPlans(planRes.data.plans || [])
+    } catch { toast('Failed to load users', 'error') }
     finally { setLoading(false) }
   }
 
@@ -89,7 +95,10 @@ function UsersTab({ toast, currentUserId }) {
               <>
                 <tr key={u.id} style={{ cursor: 'default' }}>
                   <td>
-                    <div style={{ fontWeight: 600, fontSize: 13 }}>{u.username}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>{u.username}</div>
+                      {u.plan && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 10, background: u.plan.color + '22', color: u.plan.color, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{u.plan.name}</span>}
+                    </div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{u.email}</div>
                   </td>
                   <td><span className={`badge ${u.role === 'admin' ? 'badge-yellow' : 'badge-blue'}`}>{u.role}</span></td>
@@ -124,11 +133,18 @@ function UsersTab({ toast, currentUserId }) {
                             <option value="inactive">inactive</option>
                           </select>
                         </div>
+                        <div className="form-group" style={{ minWidth: 160 }}>
+                          <label>Plan</label>
+                          <select value={editing.plan_id || ''} onChange={e => setEditing(x => ({ ...x, plan_id: e.target.value }))}>
+                            <option value="">No plan</option>
+                            {plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                          </select>
+                        </div>
                         <div className="form-group" style={{ minWidth: 180 }}>
                           <label>New Password (optional)</label>
                           <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)} placeholder="Leave blank to keep" />
                         </div>
-                        <button className="btn btn-primary btn-sm" onClick={() => updateUser(u.id, { role: editing.role, status: editing.status, password: newPw || undefined })}>Save</button>
+                        <button className="btn btn-primary btn-sm" onClick={() => updateUser(u.id, { role: editing.role, status: editing.status, password: newPw || undefined, plan_id: editing.plan_id })}>Save</button>
                         <button className="btn btn-ghost btn-sm" onClick={() => { setEditing(null); setNewPw('') }}>Cancel</button>
                       </div>
                     </td>
@@ -147,7 +163,9 @@ function UsersTab({ toast, currentUserId }) {
 
 function InvitesTab({ toast }) {
   const [invites, setInvites] = useState([])
+  const [plans, setPlans] = useState([])
   const [email, setEmail] = useState('')
+  const [selectedPlan, setSelectedPlan] = useState('')
   const [sendEmail, setSendEmail] = useState(true)
   const [loading, setLoading] = useState(false)
   const [creating, setCreating] = useState(false)
@@ -155,8 +173,11 @@ function InvitesTab({ toast }) {
 
   const load = async () => {
     setLoading(true)
-    try { const r = await api.get('/api/admin/invitations'); setInvites(r.data.invites) }
-    finally { setLoading(false) }
+    try {
+      const [invRes, planRes] = await Promise.all([api.get('/api/admin/invitations'), api.get('/api/plans')])
+      setInvites(invRes.data.invites)
+      setPlans(planRes.data.plans || [])
+    } finally { setLoading(false) }
   }
 
   useEffect(() => { load() }, [])
@@ -166,7 +187,7 @@ function InvitesTab({ toast }) {
     if (!email) return toast('Email required', 'error')
     setCreating(true)
     try {
-      const r = await api.post('/api/admin/invitations', { email, send_email: sendEmail })
+      const r = await api.post('/api/admin/invitations', { email, send_email: sendEmail, plan_id: selectedPlan || undefined })
       setLastInvite(r.data)
       setEmail('')
       toast(r.data.email_sent ? 'Invite sent by email!' : 'Invite created (no email sent)', r.data.email_sent ? 'success' : 'info')
@@ -193,6 +214,15 @@ function InvitesTab({ toast }) {
               <label>Email Address</label>
               <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="user@example.com" />
             </div>
+            {plans.length > 0 && (
+              <div className="form-group" style={{ minWidth: 160, marginBottom: 0 }}>
+                <label>Plan (optional)</label>
+                <select value={selectedPlan} onChange={e => setSelectedPlan(e.target.value)}>
+                  <option value="">No plan</option>
+                  {plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+            )}
             <button type="submit" className="btn btn-primary" disabled={creating} style={{ height: 36, whiteSpace: 'nowrap', flexShrink: 0 }}>
               {creating ? <><span className="spinner" style={{ width: 14, height: 14 }} />Creating…</> : '+ Create Invite'}
             </button>
@@ -320,7 +350,7 @@ function AppearanceTab({ toast, loadSettings }) {
 
   const LogoSlot = ({ variant, label, hint, bgColor, logoRef }) => {
     const key = variant === 'light' ? 'site_logo_light' : variant === 'ebay' ? 'ebay_sync_logo' : variant === 'favicon' ? 'site_favicon' : 'site_logo_dark'
-    const logoUrl = settings[key] ? `${API_BASE}${settings[key]}` : null
+    const logoUrl = settings[key] ? `${API_BASE}${settings[key]}?t=${Date.now()}` : null
     const uploading = uploadingLogo[variant]
 
     return (
@@ -491,6 +521,144 @@ function AppearanceTab({ toast, loadSettings }) {
             Reset Defaults
           </button>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ── PLANS TAB ──────────────────────────────────────────────────────────────
+
+function PlansTab({ toast }) {
+  const [plans, setPlans] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState(null)
+  const [creating, setCreating] = useState(false)
+  const [form, setForm] = useState({ name: '', color: '#e6a817', max_users: 0, max_sales: 0, max_inventory: 0, description: '' })
+
+  const load = async () => {
+    setLoading(true)
+    try { const r = await api.get('/api/plans'); setPlans(r.data.plans) }
+    catch { toast('Failed to load plans', 'error') }
+    finally { setLoading(false) }
+  }
+
+  useEffect(() => { load() }, [])
+
+  const save = async () => {
+    try {
+      if (editing) {
+        await api.patch(`/api/plans/${editing.id}`, form)
+        toast('Plan updated', 'success')
+      } else {
+        await api.post('/api/plans', form)
+        toast('Plan created', 'success')
+      }
+      setEditing(null); setCreating(false)
+      setForm({ name: '', color: '#e6a817', max_users: 0, max_sales: 0, max_inventory: 0, description: '' })
+      load()
+    } catch (err) { toast(err.response?.data?.error || 'Failed', 'error') }
+  }
+
+  const deletePlan = async (id, name) => {
+    if (!confirm(`Delete plan "${name}"? Users on this plan will be unassigned.`)) return
+    await api.delete(`/api/plans/${id}`)
+    toast('Plan deleted', 'success'); load()
+  }
+
+  const startEdit = (plan) => {
+    setEditing(plan)
+    setCreating(true)
+    setForm({ name: plan.name, color: plan.color, max_users: plan.max_users, max_sales: plan.max_sales, max_inventory: plan.max_inventory, description: plan.description || '' })
+  }
+
+  const FormField = ({ label, field, type = 'text', hint }) => (
+    <div className="form-group">
+      <label>{label}</label>
+      <input type={type} value={form[field] || ''} onChange={e => setForm(x => ({ ...x, [field]: type === 'number' ? parseInt(e.target.value) || 0 : e.target.value }))} />
+      {hint && <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>{hint}</p>}
+    </div>
+  )
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Create/Edit form */}
+      {creating ? (
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <h3 style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{editing ? 'EDIT PLAN' : 'CREATE PLAN'}</h3>
+          <div className="form-row">
+            <FormField label="Plan Name" field="name" />
+            <div className="form-group">
+              <label>Color</label>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <input type="color" value={form.color} onChange={e => setForm(x => ({ ...x, color: e.target.value }))} style={{ width: 48, height: 36, padding: 2, flexShrink: 0 }} />
+                <input value={form.color} onChange={e => setForm(x => ({ ...x, color: e.target.value }))} style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }} />
+              </div>
+            </div>
+          </div>
+          <FormField label="Description" field="description" hint="Short description shown to users" />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+            <FormField label="Max Users (0 = unlimited)" field="max_users" type="number" />
+            <FormField label="Max Sales (0 = unlimited)" field="max_sales" type="number" />
+            <FormField label="Max Inventory (0 = unlimited)" field="max_inventory" type="number" />
+          </div>
+
+          {/* Preview */}
+          <div style={{ background: 'var(--bg-card2)', borderRadius: 8, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Preview:</span>
+            <span style={{ fontSize: 12, padding: '2px 10px', borderRadius: 12, background: form.color + '22', color: form.color, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+              {form.name || 'Plan Name'}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button className="btn btn-primary" onClick={save}>{editing ? 'Save Changes' : 'Create Plan'}</button>
+            <button className="btn btn-ghost" onClick={() => { setCreating(false); setEditing(null); setForm({ name: '', color: '#e6a817', max_users: 0, max_sales: 0, max_inventory: 0, description: '' }) }}>Cancel</button>
+          </div>
+        </div>
+      ) : (
+        <button className="btn btn-primary" onClick={() => setCreating(true)} style={{ alignSelf: 'flex-start' }}>+ Create Plan</button>
+      )}
+
+      {/* Plans list */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
+          <h3 style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>ALL PLANS</h3>
+        </div>
+        {loading ? <div style={{ padding: 30, textAlign: 'center' }}><span className="spinner" /></div>
+        : plans.length === 0 ? <div className="empty-state" style={{ padding: '30px 0' }}><p>No plans yet — create one above</p></div>
+        : (
+          <table className="data-table">
+            <thead><tr><th>Plan</th><th>Description</th><th>Limits</th><th>Users</th><th>Actions</th></tr></thead>
+            <tbody>
+              {plans.map(plan => (
+                <tr key={plan.id} style={{ cursor: 'default' }}>
+                  <td>
+                    <span style={{ fontSize: 13, padding: '3px 10px', borderRadius: 12, background: plan.color + '22', color: plan.color, fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+                      {plan.name}
+                    </span>
+                  </td>
+                  <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{plan.description || '—'}</td>
+                  <td style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                    {[plan.max_users, plan.max_sales, plan.max_inventory].some(v => v > 0) ? (
+                      <div>
+                        {plan.max_users > 0 && <div>👥 {plan.max_users} users</div>}
+                        {plan.max_sales > 0 && <div>💰 {plan.max_sales} sales</div>}
+                        {plan.max_inventory > 0 && <div>📦 {plan.max_inventory} items</div>}
+                      </div>
+                    ) : 'Unlimited'}
+                  </td>
+                  <td className="mono">{plan.user_count || 0}</td>
+                  <td>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button className="btn btn-ghost btn-sm" onClick={() => startEdit(plan)}>✏</button>
+                      <button className="btn btn-danger btn-sm" onClick={() => deletePlan(plan.id, plan.name)}>✕</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   )

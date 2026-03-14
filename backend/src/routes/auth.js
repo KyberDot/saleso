@@ -14,7 +14,10 @@ const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: { e
 // Auth status
 router.get('/status', (req, res) => {
   if (!req.session.userId) return res.json({ authenticated: false });
-  const user = db.prepare('SELECT id, username, email, full_name, role, status, avatar_url, default_currency, ebay_username, ebay_user_id, created_at FROM users WHERE id = ? AND status = ?').get(req.session.userId, 'active');
+  const user = db.prepare('SELECT id, username, email, full_name, role, status, avatar_url, default_currency, ebay_username, ebay_user_id, plan_id, created_at FROM users WHERE id = ? AND status = ?').get(req.session.userId, 'active');
+  if (user && user.plan_id) {
+    user.plan = db.prepare('SELECT id, name, color FROM plans WHERE id = ?').get(user.plan_id) || null;
+  }
   if (!user) return res.json({ authenticated: false });
   res.json({ authenticated: true, user });
 });

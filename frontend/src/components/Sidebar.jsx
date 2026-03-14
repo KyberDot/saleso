@@ -15,7 +15,7 @@ const navItems = [
 function Avatar({ user, size = 30 }) {
   const initial = user?.username?.[0]?.toUpperCase() || 'U'
   if (user?.avatar_url) {
-    return <img src={`${API_BASE}${user.avatar_url}`} alt="" className="avatar" style={{ width: size, height: size }} />
+    return <img src={`${API_BASE}${user.avatar_url}?t=${Date.now()}`} alt="" className="avatar" style={{ width: size, height: size }} />
   }
   return (
     <div className="avatar" style={{ width: size, height: size, fontSize: size * 0.38 }}>
@@ -173,8 +173,15 @@ export default function Sidebar() {
         >
           <Avatar user={user} size={32} />
           <div style={{ flex: 1, overflow: 'hidden' }}>
-            <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--username-color, var(--text))' }}>
-              {user?.full_name || user?.username}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: user?.plan?.color || 'var(--username-color, var(--text))' }}>
+                {user?.full_name || user?.username}
+              </div>
+              {user?.plan && (
+                <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 8, background: user.plan.color + '22', color: user.plan.color, fontFamily: 'var(--font-mono)', fontWeight: 700, flexShrink: 0 }}>
+                  {user.plan.name}
+                </span>
+              )}
             </div>
             <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
               {user?.role === 'admin' ? '👑 Admin' : '● Active'}

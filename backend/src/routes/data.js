@@ -9,7 +9,7 @@ const { requireAuth, requireEbay } = require('../middleware/auth');
 const inventoryRouter = express.Router();
 
 inventoryRouter.get('/', requireAuth, (req, res) => {
-  const { search, limit = 200, offset = 0 } = req.query;
+  const { search, limit = 200, offset = 0, sort = 'updated_at', dir = 'desc' } = req.query;
   const user = req.user;
   const markup = 1 + ((user.rate_markup || 0) / 100);
 
@@ -20,7 +20,10 @@ inventoryRouter.get('/', requireAuth, (req, res) => {
     const s = `%${search}%`;
     params.push(s, s, s, s);
   }
-  query += ' ORDER BY updated_at DESC LIMIT ? OFFSET ?';
+  const allowedSort = ['quantity_available','price','cost_price','sold_30d','revenue_30d','listing_status','updated_at']
+  const sortCol = allowedSort.includes(sort) ? sort : 'updated_at'
+  const sortDir = dir === 'asc' ? 'ASC' : 'DESC'
+  query += ` ORDER BY ${sortCol} ${sortDir} LIMIT ? OFFSET ?`;
   params.push(parseInt(limit), parseInt(offset));
 
   const items = db.prepare(query).all(...params);

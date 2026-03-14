@@ -7,7 +7,7 @@ const { requireAuth, requireEbay } = require('../middleware/auth');
 const router = express.Router();
 
 router.get('/', requireAuth, (req, res) => {
-  const { from, to, search, limit = 100, offset = 0 } = req.query;
+  const { from, to, search, limit = 100, offset = 0, sort = 'sale_date', dir = 'desc' } = req.query;
   const user = req.user;
   const markup = 1 + ((user.rate_markup || 0) / 100);
   const shipping = user.default_shipping || 0;
@@ -21,7 +21,10 @@ router.get('/', requireAuth, (req, res) => {
     const s = `%${search}%`;
     params.push(s, s, s, s, s);
   }
-  query += ' ORDER BY sale_date DESC LIMIT ? OFFSET ?';
+  const allowedSort = ['sale_date','total_price','net_profit','quantity','payment_status','buyer_username']
+  const sortCol = allowedSort.includes(sort) ? sort : 'sale_date'
+  const sortDir = dir === 'asc' ? 'ASC' : 'DESC'
+  query += ` ORDER BY ${sortCol} ${sortDir} LIMIT ? OFFSET ?`;
   params.push(parseInt(limit), parseInt(offset));
 
   const sales = db.prepare(query).all(...params);
@@ -110,7 +113,11 @@ router.post('/sync', requireAuth, requireEbay, async (req, res) => {
         const totalPrice = parseFloat(order.pricingSummary?.total?.value || unitPrice * qty);
         const deliveryCost = parseFloat(order.pricingSummary?.deliveryCost?.value || 0);
         const ebayFees = totalPrice * 0.1;
-        const netProfit = totalPrice - ebayFees - deliveryCost;
+        // Look up item shipping cost override from inventory
+        const invItem = db.prepare('SELECT shipping_cost FROM tracked_items WHERE user_id = ? AND (item_id = ? OR sku = ?) LIMIT 1')
+          .get(req.user.id, item.legacyItemId || '', item.sku || '');
+        const effectiveShipping = invItem?.shipping_cost > 0 ? invItem.shipping_cost : deliveryCost;
+        const netProfit = totalPrice - ebayFees - effectiveShipping;
         const sku = item.sku || '';
 
         insert.run(saleId, req.user.id, order.orderId, item.legacyItemId || '', item.title || '',

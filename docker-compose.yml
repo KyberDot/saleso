@@ -19,6 +19,8 @@ services:
       - FRONTEND_URL=https://saleso.app
       - EBAY_DELETION_TOKEN=${EBAY_DELETION_TOKEN}
       - EBAY_DELETION_ENDPOINT=${EBAY_DELETION_ENDPOINT}
+      - DATA_DIR=/app/data
+      - UPLOADS_DIR=/app/uploads
     volumes:
       - ./config/data:/app/data
       - ./config/uploads:/app/uploads

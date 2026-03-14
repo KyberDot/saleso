@@ -32,6 +32,7 @@ db.exec(`
     ebay_token_expiry INTEGER,
     full_name TEXT,
     invite_token TEXT,
+    plan_id TEXT,
     invited_by TEXT,
     last_login INTEGER,
     created_at INTEGER DEFAULT (strftime('%s', 'now')),
@@ -117,6 +118,19 @@ db.exec(`
     order_line_item_id TEXT,
     created_at INTEGER DEFAULT (strftime('%s', 'now')),
     FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS plans (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    color TEXT DEFAULT '#e6a817',
+    max_users INTEGER DEFAULT 0,
+    max_sales INTEGER DEFAULT 0,
+    max_inventory INTEGER DEFAULT 0,
+    features TEXT DEFAULT '{}',
+    description TEXT,
+    created_at INTEGER DEFAULT (strftime('%s', 'now')),
+    updated_at INTEGER DEFAULT (strftime('%s', 'now'))
   );
 
   CREATE TABLE IF NOT EXISTS sync_log (

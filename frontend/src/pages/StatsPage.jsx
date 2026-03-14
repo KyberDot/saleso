@@ -1,9 +1,17 @@
 import { useState, useEffect } from 'react'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Legend, AreaChart, Area } from 'recharts'
 import api from '../utils/api'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
-import { formatCurrency, formatNumber } from '../utils/format'
+import { formatCurrency, formatNumber, formatDate } from '../utils/format'
+
+const QUICK_RANGES = [
+  { label: '7d', days: 7 },
+  { label: '14d', days: 14 },
+  { label: '30d', days: 30 },
+  { label: '90d', days: 90 },
+  { label: 'Custom', days: null },
+]
 
 const ChartTip = ({ active, payload, label, currency }) => {
   if (!active || !payload?.length) return null
@@ -11,10 +19,10 @@ const ChartTip = ({ active, payload, label, currency }) => {
     <div style={{ background: 'var(--bg-card2)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '10px 14px', fontSize: 12 }}>
       <div style={{ color: 'var(--text-muted)', marginBottom: 6, fontFamily: 'var(--font-mono)' }}>{label}</div>
       {payload.map(p => (
-        <div key={p.dataKey} style={{ color: p.color, display: 'flex', gap: 12, justifyContent: 'space-between' }}>
+        <div key={p.dataKey} style={{ color: p.color, display: 'flex', gap: 12, justifyContent: 'space-between', marginBottom: 2 }}>
           <span>{p.name}</span>
-          <span style={{ fontWeight: 700 }}>
-            {['gross_revenue','net_profit','fees'].includes(p.dataKey) ? formatCurrency(p.value, currency) : formatNumber(p.value)}
+          <span style={{ fontWeight: 700, marginLeft: 16 }}>
+            {['gross_revenue','net_profit','fees','revenue'].includes(p.dataKey) ? formatCurrency(p.value, currency) : formatNumber(p.value)}
           </span>
         </div>
       ))}
@@ -28,6 +36,12 @@ export default function StatsPage() {
   const [monthly, setMonthly] = useState([])
   const [syncLog, setSyncLog] = useState([])
   const [loading, setLoading] = useState(true)
+  const [activeRange, setActiveRange] = useState(30)
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
+  const [showCustom, setShowCustom] = useState(false)
+  const [rangeSummary, setRangeSummary] = useState(null)
+  const [rangeDaily, setRangeDaily] = useState([])
   const currency = user?.default_currency || 'GBP'
 
   useEffect(() => {
@@ -38,7 +52,6 @@ export default function StatsPage() {
           api.get('/api/stats/monthly'),
           api.get('/api/stats/sync-log'),
         ])
-        // Reverse so oldest month is left on chart
         setMonthly([...(monthRes.data.monthly || [])].reverse())
         setSyncLog(logRes.data.logs || [])
       } catch { toast('Failed to load stats', 'error') }
@@ -47,7 +60,36 @@ export default function StatsPage() {
     load()
   }, [])
 
-  // Totals
+  useEffect(() => {
+    loadRangeSummary()
+  }, [activeRange])
+
+  const loadRangeSummary = async (from, to) => {
+    try {
+      const params = {}
+      if (from && to) {
+        params.from = new Date(from).getTime()
+        params.to = new Date(to + 'T23:59:59').getTime()
+      } else {
+        params.days = activeRange
+      }
+      const res = await api.get('/api/sales/summary', { params })
+      setRangeSummary(res.data.summary)
+      setRangeDaily(res.data.dailySales || [])
+    } catch {}
+  }
+
+  const handleRangeSelect = (days) => {
+    if (days === null) { setShowCustom(true); return }
+    setActiveRange(days); setShowCustom(false)
+  }
+
+  const handleCustomApply = () => {
+    if (!customFrom || !customTo) return
+    setShowCustom(false)
+    loadRangeSummary(customFrom, customTo)
+  }
+
   const totals = monthly.reduce((acc, m) => ({
     orders: acc.orders + (m.orders || 0),
     items_sold: acc.items_sold + (m.items_sold || 0),
@@ -60,12 +102,17 @@ export default function StatsPage() {
     ? monthly.reduce((best, m) => m.gross_revenue > best.gross_revenue ? m : best, monthly[0])
     : null
 
+  const avgMonthlyRevenue = monthly.length > 0 ? totals.gross_revenue / monthly.length : 0
+  const avgOrderValue = totals.orders > 0 ? totals.gross_revenue / totals.orders : 0
+
+  const rs = rangeSummary || {}
+
   return (
     <div>
       <div className="page-header">
         <div>
-          <h2 style={{ fontSize: 18, marginBottom: 2 }}>Analytics</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: 12 }}>Monthly breakdown — all time</p>
+          <h2 style={{ fontSize: 18, marginBottom: 2 }}>📊 Analytics</h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: 12 }}>All-time performance &amp; trends</p>
         </div>
       </div>
 
@@ -74,7 +121,7 @@ export default function StatsPage() {
           <div style={{ textAlign: 'center', padding: 60 }}><span className="spinner" style={{ width: 32, height: 32 }} /></div>
         ) : (
           <>
-            {/* Totals */}
+            {/* All-time stats — 8 boxes */}
             <div className="stats-grid" style={{ marginBottom: 24 }}>
               {[
                 { label: 'All-Time Revenue', value: formatCurrency(totals.gross_revenue, currency), accent: true },
@@ -83,6 +130,8 @@ export default function StatsPage() {
                 { label: 'Total Items Sold', value: formatNumber(totals.items_sold) },
                 { label: 'Total eBay Fees', value: formatCurrency(totals.fees, currency) },
                 { label: 'Best Month', value: bestMonth ? bestMonth.month : '—', sub: bestMonth ? formatCurrency(bestMonth.gross_revenue, currency) : '' },
+                { label: 'Avg Monthly Revenue', value: formatCurrency(avgMonthlyRevenue, currency) },
+                { label: 'Avg Order Value', value: formatCurrency(avgOrderValue, currency) },
               ].map(s => (
                 <div key={s.label} className="stat-card" style={{ borderColor: s.accent ? 'var(--accent)' : undefined }}>
                   <div className="stat-label">{s.label}</div>
@@ -92,7 +141,70 @@ export default function StatsPage() {
               ))}
             </div>
 
-            {/* Revenue chart */}
+            {/* Date range selector */}
+            <div className="card" style={{ marginBottom: 20, padding: '16px 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>RANGE:</span>
+                <div style={{ display: 'flex', gap: 4, background: 'var(--bg-card2)', borderRadius: 8, padding: 3, border: '1px solid var(--border)' }}>
+                  {QUICK_RANGES.map(r => (
+                    <button key={r.label} className="btn btn-sm"
+                      onClick={() => handleRangeSelect(r.days)}
+                      style={{ background: (!showCustom && activeRange === r.days) || (showCustom && r.days === null) ? 'var(--accent)' : 'transparent', color: (!showCustom && activeRange === r.days) || (showCustom && r.days === null) ? '#000' : 'var(--text-muted)', border: 'none', fontFamily: 'var(--font-mono)' }}>
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+                {showCustom && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)} style={{ width: 140, fontSize: 12, colorScheme: 'dark' }} />
+                    <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>to</span>
+                    <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)} style={{ width: 140, fontSize: 12, colorScheme: 'dark' }} />
+                    <button className="btn btn-primary btn-sm" onClick={handleCustomApply} disabled={!customFrom || !customTo}>Apply</button>
+                  </div>
+                )}
+              </div>
+
+              {/* Range stats — 4 boxes */}
+              {rs.total_orders !== undefined && (
+                <div className="stats-grid" style={{ marginTop: 16 }}>
+                  {[
+                    { label: showCustom ? 'Period Revenue' : `${activeRange}d Revenue`, value: formatCurrency(rs.gross_revenue, currency), accent: true },
+                    { label: 'Period Net Profit', value: formatCurrency(rs.net_profit, currency), color: rs.net_profit > 0 ? 'var(--green)' : 'var(--red)' },
+                    { label: 'Orders', value: formatNumber(rs.total_orders) },
+                    { label: 'Unique Buyers', value: formatNumber(rs.unique_buyers) },
+                  ].map(s => (
+                    <div key={s.label} className="stat-card" style={{ borderColor: s.accent ? 'var(--accent)' : undefined, padding: '14px 16px' }}>
+                      <div className="stat-label">{s.label}</div>
+                      <div className="stat-value" style={{ color: s.color || (s.accent ? 'var(--accent)' : undefined), fontSize: 18 }}>{s.value}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Range daily chart */}
+            {rangeDaily.length > 0 && (
+              <div className="card" style={{ marginBottom: 20 }}>
+                <h3 style={{ fontSize: 12, fontFamily: 'var(--font-mono)', marginBottom: 20 }}>DAILY REVENUE — SELECTED RANGE</h3>
+                <ResponsiveContainer width="100%" height={200}>
+                  <AreaChart data={rangeDaily}>
+                    <defs>
+                      <linearGradient id="rg2" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                    <XAxis dataKey="day" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={v => formatCurrency(v, currency)} />
+                    <Tooltip content={<ChartTip currency={currency} />} />
+                    <Area type="monotone" dataKey="revenue" name="Revenue" stroke="var(--accent)" strokeWidth={2} fill="url(#rg2)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+
+            {/* Monthly revenue chart */}
             <div className="card" style={{ marginBottom: 20 }}>
               <h3 style={{ fontSize: 12, fontFamily: 'var(--font-mono)', marginBottom: 20 }}>MONTHLY REVENUE & PROFIT</h3>
               {monthly.length > 0 ? (
@@ -107,9 +219,7 @@ export default function StatsPage() {
                     <Bar dataKey="net_profit" name="Net Profit" fill="var(--green)" radius={[4,4,0,0]} opacity={0.9} />
                   </BarChart>
                 </ResponsiveContainer>
-              ) : (
-                <div className="empty-state"><p>No data yet</p></div>
-              )}
+              ) : <div className="empty-state"><p>No data yet</p></div>}
             </div>
 
             {/* Orders & items chart */}
@@ -127,9 +237,7 @@ export default function StatsPage() {
                     <Line type="monotone" dataKey="items_sold" name="Items Sold" stroke="var(--blue)" strokeWidth={2} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
-              ) : (
-                <div className="empty-state"><p>No data yet</p></div>
-              )}
+              ) : <div className="empty-state"><p>No data yet</p></div>}
             </div>
 
             {/* Monthly table */}
@@ -139,17 +247,7 @@ export default function StatsPage() {
               </div>
               {monthly.length > 0 ? (
                 <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Month</th>
-                      <th>Orders</th>
-                      <th>Items</th>
-                      <th>Revenue</th>
-                      <th>Net Profit</th>
-                      <th>Fees</th>
-                      <th>Margin</th>
-                    </tr>
-                  </thead>
+                  <thead><tr><th>Month</th><th>Orders</th><th>Items</th><th>Revenue</th><th>Net Profit</th><th>Fees</th><th>Margin</th></tr></thead>
                   <tbody>
                     {[...monthly].reverse().map(m => {
                       const margin = m.gross_revenue > 0 ? ((m.net_profit / m.gross_revenue) * 100).toFixed(1) : 0
@@ -161,19 +259,13 @@ export default function StatsPage() {
                           <td className="mono" style={{ color: 'var(--accent)', fontWeight: 700 }}>{formatCurrency(m.gross_revenue, currency)}</td>
                           <td className="mono" style={{ color: m.net_profit > 0 ? 'var(--green)' : 'var(--red)', fontWeight: 600 }}>{formatCurrency(m.net_profit, currency)}</td>
                           <td className="mono" style={{ color: 'var(--text-muted)' }}>{formatCurrency(m.fees, currency)}</td>
-                          <td>
-                            <span className={`badge ${parseFloat(margin) > 30 ? 'badge-green' : parseFloat(margin) > 10 ? 'badge-yellow' : 'badge-red'}`}>
-                              {margin}%
-                            </span>
-                          </td>
+                          <td><span className={`badge ${parseFloat(margin) > 30 ? 'badge-green' : parseFloat(margin) > 10 ? 'badge-yellow' : 'badge-red'}`}>{margin}%</span></td>
                         </tr>
                       )
                     })}
                   </tbody>
                 </table>
-              ) : (
-                <div className="empty-state"><p>No monthly data yet — sync your eBay account</p></div>
-              )}
+              ) : <div className="empty-state"><p>No monthly data yet</p></div>}
             </div>
 
             {/* Sync log */}
@@ -196,9 +288,7 @@ export default function StatsPage() {
                     ))}
                   </tbody>
                 </table>
-              ) : (
-                <div className="empty-state" style={{ padding: '30px 0' }}><p>No syncs yet</p></div>
-              )}
+              ) : <div className="empty-state" style={{ padding: '30px 0' }}><p>No syncs yet</p></div>}
             </div>
           </>
         )}

@@ -7,7 +7,7 @@ import { useToast } from '../context/ToastContext'
 import { formatCurrency, formatNumber, formatDate } from '../utils/format'
 import SyncButton from '../components/SyncButton'
 
-const DAYS = [7, 14, 30, 90]
+const DAYS = [0, 7, 14, 30, 90]  // 0 = Today
 
 const ChartTip = ({ active, payload, label, currency }) => {
   if (!active || !payload?.length) return null
@@ -57,7 +57,7 @@ export default function Dashboard() {
     <div>
       <div className="page-header">
         <div>
-          <h2 style={{ fontSize: 18, marginBottom: 2 }}>Dashboard</h2>
+          <h2 style={{ fontSize: 18, marginBottom: 2 }}>🏠 Dashboard</h2>
           <p style={{ color: 'var(--text-muted)', fontSize: 12 }}>
             Welcome back, {user?.username}
             {markup > 0 && <span style={{ color: 'var(--accent)', marginLeft: 8 }}>+{markup}% markup active</span>}
@@ -68,7 +68,7 @@ export default function Dashboard() {
             {DAYS.map(d => (
               <button key={d} className="btn btn-sm" onClick={() => setDays(d)}
                 style={{ background: days === d ? 'var(--accent)' : 'transparent', color: days === d ? '#000' : 'var(--text-muted)', border: 'none', fontFamily: 'var(--font-mono)' }}>
-                {d}d
+                {d === 0 ? 'Today' : d + 'd'}
               </button>
             ))}
           </div>

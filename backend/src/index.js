@@ -11,6 +11,7 @@ const usersRoutes = require('./routes/users');
 const adminRoutes = require('./routes/admin');
 const salesRoutes = require('./routes/sales');
 const { inventoryRouter, ordersRouter, statsRouter } = require('./routes/data');
+const plansRouter = require('./routes/plans');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -43,8 +44,12 @@ app.use(session({
   }
 }));
 
-// Serve uploads
-app.use('/uploads', express.static(UPLOADS_DIR));
+// Serve uploads with no-cache so images update immediately after re-upload
+app.use('/uploads', (req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.set('Pragma', 'no-cache');
+  next();
+}, express.static(UPLOADS_DIR));
 
 // Disable caching on all API routes
 app.use('/api', (req, res, next) => {
@@ -61,6 +66,7 @@ app.use('/api/sales', salesRoutes);
 app.use('/api/inventory', inventoryRouter);
 app.use('/api/orders', ordersRouter);
 app.use('/api/stats', statsRouter);
+app.use('/api/plans', plansRouter);
 
 // Public site settings
 app.get('/api/site', (req, res) => {

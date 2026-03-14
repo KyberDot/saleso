@@ -30,13 +30,16 @@ const logoUpload = multer({ storage: logoStorage, limits: { fileSize: 5 * 1024 *
 
 // List all users
 router.get('/users', requireAdmin, (req, res) => {
-  const users = db.prepare('SELECT id, username, email, role, status, avatar_url, default_currency, ebay_username, last_login, created_at, invited_by FROM users ORDER BY created_at DESC').all();
+  const users = db.prepare('SELECT id, username, email, role, status, avatar_url, default_currency, ebay_username, last_login, created_at, invited_by, plan_id FROM users ORDER BY created_at DESC').all();
+  const plans = db.prepare('SELECT id, name, color FROM plans').all();
+  const planMap = Object.fromEntries(plans.map(p => [p.id, p]));
+  users.forEach(u => { u.plan = u.plan_id ? planMap[u.plan_id] || null : null; });
   res.json({ users });
 });
 
 // Update user (role, status)
 router.patch('/users/:id', requireAdmin, async (req, res) => {
-  const { role, status, password } = req.body;
+  const { role, status, password, plan_id } = req.body;
   if (req.params.id === req.user.id && status === 'inactive') {
     return res.status(400).json({ error: 'Cannot deactivate your own account' });
   }
@@ -80,7 +83,7 @@ router.get('/invitations', requireAdmin, (req, res) => {
 
 // Create invitation
 router.post('/invitations', requireAdmin, async (req, res) => {
-  const { email, send_email } = req.body;
+  const { email, send_email, plan_id } = req.body;
   if (!email) return res.status(400).json({ error: 'Email required' });
 
   const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);

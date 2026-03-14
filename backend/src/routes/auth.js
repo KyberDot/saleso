@@ -30,7 +30,7 @@ router.post('/login', loginLimiter, async (req, res) => {
   const valid = await bcrypt.compare(password, user.password_hash);
   if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
 
-  db.prepare('UPDATE users SET last_login = strftime(%s, now) WHERE id = ?').run(user.id);
+  db.prepare(`UPDATE users SET last_login = strftime('%s', 'now') WHERE id = ?`).run(user.id);
   req.session.userId = user.id;
   req.session.save(() => {
     res.json({
@@ -60,7 +60,7 @@ router.post('/register', async (req, res) => {
   const userId = uuidv4();
   db.prepare(`INSERT INTO users (id, username, email, password_hash, role, status, invited_by) VALUES (?, ?, ?, ?, 'user', 'active', ?)`)
     .run(userId, username, invite.email, hash, invite.invited_by);
-  db.prepare('UPDATE invitations SET status = ?, used_at = strftime(%s, now) WHERE id = ?').run('used', invite.id);
+  db.prepare(`UPDATE invitations SET status = ?, used_at = strftime('%s', 'now') WHERE id = ?`).run('used', invite.id);
 
   req.session.userId = userId;
   req.session.save(() => {
@@ -102,8 +102,8 @@ router.post('/reset-password', async (req, res) => {
   if (!reset || reset.expires_at < Date.now()) return res.status(400).json({ error: 'Invalid or expired reset token' });
 
   const hash = await bcrypt.hash(password, 12);
-  db.prepare('UPDATE users SET password_hash = ?, updated_at = strftime(%s, now) WHERE id = ?').run(hash, reset.user_id);
-  db.prepare('UPDATE password_resets SET used_at = strftime(%s, now) WHERE id = ?').run(reset.id);
+  db.prepare(`UPDATE users SET password_hash = ?, updated_at = strftime('%s', 'now') WHERE id = ?`).run(hash, reset.user_id);
+  db.prepare(`UPDATE password_resets SET used_at = strftime('%s', 'now') WHERE id = ?`).run(reset.id);
   res.json({ success: true });
 });
 

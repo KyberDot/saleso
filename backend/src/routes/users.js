@@ -78,7 +78,7 @@ router.post('/me/password', requireAuth, async (req, res) => {
   if (!valid) return res.status(400).json({ error: 'Current password incorrect' });
 
   const hash = await bcrypt.hash(new_password, 12);
-  db.prepare('UPDATE users SET password_hash = ?, updated_at = strftime(%s, now) WHERE id = ?').run(hash, req.user.id);
+  db.prepare(`UPDATE users SET password_hash = ?, updated_at = strftime('%s', 'now') WHERE id = ?`).run(hash, req.user.id);
   res.json({ success: true });
 });
 
@@ -86,7 +86,7 @@ router.post('/me/password', requireAuth, async (req, res) => {
 router.post('/me/avatar', requireAuth, upload.single('avatar'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   const avatarUrl = `/uploads/avatars/${req.file.filename}`;
-  db.prepare('UPDATE users SET avatar_url = ?, updated_at = strftime(%s, now) WHERE id = ?').run(avatarUrl, req.user.id);
+  db.prepare(`UPDATE users SET avatar_url = ?, updated_at = strftime('%s', 'now') WHERE id = ?`).run(avatarUrl, req.user.id);
   res.json({ success: true, avatar_url: avatarUrl });
 });
 

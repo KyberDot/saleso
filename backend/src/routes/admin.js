@@ -141,7 +141,7 @@ router.patch('/settings', requireAdmin, (req, res) => {
     'smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from', 'smtp_secure'
   ];
 
-  const update = db.prepare('INSERT OR REPLACE INTO site_settings (key, value, updated_at) VALUES (?, ?, strftime(%s, now))');
+  const update = db.prepare(`INSERT OR REPLACE INTO site_settings (key, value, updated_at) VALUES (?, ?, strftime('%s', 'now'))`);
   for (const [key, value] of Object.entries(settings)) {
     if (allowedKeys.includes(key) && value !== undefined) {
       update.run(key, String(value));

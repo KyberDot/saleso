@@ -26,7 +26,7 @@ export default function SettingsPage() {
   const [newPw, setNewPw] = useState('')
   const [confirmPw, setConfirmPw] = useState('')
 
-  // eBay state
+  // eBay state - read directly from user, no local state needed
   const [ebayConnecting, setEbayConnecting] = useState(false)
 
   useEffect(() => {
@@ -35,7 +35,7 @@ export default function SettingsPage() {
       setUsername(user.username || '')
       setEmail(user.email || '')
       setCurrency(user.default_currency || 'GBP')
-      // eBay state read directly from user object
+
     }
   }, [user])
 
@@ -44,13 +44,12 @@ export default function SettingsPage() {
   useEffect(() => {
     if (searchParams.get('ebay_success')) {
       setTab('ebay')
-      // Force fresh user fetch to get updated ebay_username
-      setTimeout(() => {
-        checkAuth().then(() => {
-          toast('eBay connected successfully!', 'success')
-          window.history.replaceState({}, '', '/settings?tab=ebay')
-        })
-      }, 300)
+      window.history.replaceState({}, '', '/settings?tab=ebay')
+      // Small delay then fetch fresh user - bypasses any browser cache
+      setTimeout(async () => {
+        await checkAuth()
+        toast('eBay connected successfully!', 'success')
+      }, 500)
     }
     if (searchParams.get('ebay_error')) {
       toast('eBay error: ' + searchParams.get('ebay_error'), 'error')
@@ -127,7 +126,8 @@ export default function SettingsPage() {
     { id: 'password', label: '🔒 Password' },
   ]
 
-  const isConnected = !!user?.ebay_username
+  // Always compute from current user - never cache this
+  const isConnected = !!(user?.ebay_username)
 
   return (
     <div>

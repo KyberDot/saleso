@@ -20,6 +20,7 @@ const UPLOADS_DIR = db.UPLOADS_DIR;
 const PUBLIC_DIR = path.join(__dirname, '../public');
 
 app.set('trust proxy', 1);
+app.set('etag', false); // Prevent 304 caching on API responses
 
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(morgan('combined'));
@@ -44,6 +45,13 @@ app.use(session({
 
 // Serve uploads
 app.use('/uploads', express.static(UPLOADS_DIR));
+
+// Disable caching on all API routes
+app.use('/api', (req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+  res.set('Pragma', 'no-cache');
+  next();
+});
 
 // API Routes
 app.use('/api/auth', authRoutes);

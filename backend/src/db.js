@@ -91,7 +91,7 @@ db.exec(`
     created_at INTEGER DEFAULT (strftime('%s', 'now')),
     updated_at INTEGER DEFAULT (strftime('%s', 'now')),
     FOREIGN KEY (user_id) REFERENCES users(id),
-    UNIQUE(user_id, item_id)
+    UNIQUE(user_id, item_id, sku) 
   );
 
   CREATE TABLE IF NOT EXISTS sales (
@@ -202,6 +202,43 @@ if (userCount.count === 0) {
 // Migrations for existing databases
 try { db.prepare('ALTER TABLE sales ADD COLUMN ad_rate_cost REAL DEFAULT 0').run() } catch {}
 try { db.prepare('ALTER TABLE sales ADD COLUMN item_cost REAL DEFAULT 0').run() } catch {}
+
+// SKU Migration: Fix tracked_items unique constraint to allow multiple SKUs per item without losing data
+try {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tracked_items_new (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      item_id TEXT NOT NULL,
+      title TEXT,
+      sku TEXT,
+      custom_label TEXT,
+      category TEXT,
+      condition TEXT,
+      quantity_available INTEGER DEFAULT 0,
+      quantity_sold INTEGER DEFAULT 0,
+      price REAL,
+      cost_price REAL,
+      currency TEXT DEFAULT 'GBP',
+      listing_url TEXT,
+      image_url TEXT,
+      listing_status TEXT DEFAULT 'Active',
+      notes TEXT,
+      tags TEXT,
+      rate_markup REAL DEFAULT 0,
+      shipping_cost REAL DEFAULT 0,
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
+      updated_at INTEGER DEFAULT (strftime('%s', 'now')),
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      UNIQUE(user_id, item_id, sku)
+    );
+    INSERT OR IGNORE INTO tracked_items_new SELECT * FROM tracked_items;
+    DROP TABLE tracked_items;
+    ALTER TABLE tracked_items_new RENAME TO tracked_items;
+  `);
+} catch (e) {
+  console.log('SKU Migration skipped or already applied.');
+}
 
 module.exports = db;
 module.exports.UPLOADS_DIR = UPLOADS_DIR;

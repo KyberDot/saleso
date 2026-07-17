@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import api from '../utils/api'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
@@ -107,19 +107,19 @@ export function SalesPage() {
             : sales.length === 0
               ? <div className="empty-state"><span className="empty-icon">💰</span><h3>No sales found</h3></div>
               : <>
-                <div style={{ overflowX: 'auto' }}>
-                  <table className="data-table">
+                <div style={{ overflowX: 'hidden' }}>
+                  <table className="data-table" style={{ tableLayout: 'fixed', width: '100%', wordBreak: 'break-word' }}>
                     <thead>
                       <tr>
-                        <th style={{ width: 110 }}>Order ID</th>
-                        <th>Item</th>
+                        <th style={{ width: 100 }}>Order ID</th>
+                        <th style={{ width: 'auto' }}>Item</th>
                         <th style={{ width: 90 }}>SKU</th>
                         <SortTh label="Qty" field="quantity" {...sp} style={{ width: 50 }} />
                         <SortTh label="Total" field="total_price" {...sp} style={{ width: 80 }} />
                         <SortTh label="Net" field="net_profit" {...sp} style={{ width: 80 }} />
                         <th style={{ width: 72 }}>Ad Cost</th>
-                        <SortTh label="Buyer" field="buyer_username" {...sp} style={{ width: 110 }} />
-                        <SortTh label="Date" field="sale_date" {...sp} style={{ width: 130 }} />
+                        <SortTh label="Buyer" field="buyer_username" {...sp} style={{ width: 100 }} />
+                        <SortTh label="Date" field="sale_date" {...sp} style={{ width: 110 }} />
                         <SortTh label="Status" field="payment_status" {...sp} style={{ width: 80 }} />
                       </tr>
                     </thead>
@@ -127,7 +127,7 @@ export function SalesPage() {
                       {sales.map(sale => (
                         <tr key={sale.id} onClick={() => setSelected(sale)}>
                           <td><span className="mono" style={{ fontSize: 10, color: 'var(--accent)' }}>{sale.order_id?.slice(0, 14)}…</span></td>
-                          <td style={{ maxWidth: 200 }}>
+                          <td>
                             <div style={{ fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sale.item_title || '—'}</div>
                             {sale.item_id && <div className="mono" style={{ fontSize: 10, color: 'var(--text-muted)' }}>#{sale.item_id}</div>}
                           </td>
@@ -274,7 +274,7 @@ export function OrdersPage() {
                       <span className="mono" style={{ fontSize: 11, color: 'var(--accent)' }}>{order.tracking_number}</span>
                     </div>
                   )}
-                  <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 8 }}>
+                  <table style={{ tableLayout: 'fixed', width: '100%', wordBreak: 'break-word', borderCollapse: 'collapse', marginTop: 8 }}>
                     <thead><tr>{['Title','Item ID','SKU','Qty','Unit','Total'].map(h => <th key={h} style={{ padding: '5px 10px', textAlign: 'left', fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid var(--border)' }}>{h}</th>)}</tr></thead>
                     <tbody>
                       {(order.lineItems||[]).map((li, i) => (
@@ -353,11 +353,24 @@ export function InventoryPage() {
 
   const filteredItems = items.filter(item => {
     const qty = item.quantity_available
-    // Active = qty is null (unknown) OR qty > 0
-    // Inactive = qty is exactly 0
     if (stockFilter === 'in') return qty === null || qty === undefined || qty > 0
     return qty !== null && qty !== undefined && qty === 0
   })
+
+  // Group items by Item ID (Parent -> Skus)
+  const groupedItems = Object.values(filteredItems.reduce((acc, item) => {
+    const key = item.item_id || item.title || item.id;
+    if (!acc[key]) {
+      acc[key] = {
+        title: item.title,
+        item_id: item.item_id,
+        image_url: item.image_url,
+        skus: []
+      };
+    }
+    acc[key].skus.push(item);
+    return acc;
+  }, {}));
 
   const inCount = items.filter(i => i.quantity_available === null || i.quantity_available === undefined || i.quantity_available > 0).length
   const outCount = items.filter(i => i.quantity_available !== null && i.quantity_available !== undefined && i.quantity_available === 0).length
@@ -373,10 +386,9 @@ export function InventoryPage() {
       <div className="page-header">
         <div>
           <h2 style={{ fontSize: 17, fontWeight: 600 }}>📦 Inventory</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 2 }}>{total} items</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 2 }}>{total} variations tracked</p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {/* Stock switcher */}
           <div style={{ display: 'flex', background: 'var(--bg-card)', border: '1px solid var(--border-light)', borderRadius: 20, padding: 3, gap: 2 }}>
             {[
               { key: 'in', label: 'In Stock', count: inCount, dot: '#22c55e' },
@@ -415,12 +427,12 @@ export function InventoryPage() {
             : filteredItems.length === 0
               ? <div className="empty-state"><span className="empty-icon">📦</span><h3>{stockFilter === 'out' ? 'No out of stock items' : 'No inventory yet'}</h3></div>
               : (
-                <div style={{ overflowX: 'auto' }}>
-                  <table className="data-table">
+                <div style={{ overflowX: 'hidden' }}>
+                  <table className="data-table" style={{ tableLayout: 'fixed', width: '100%', wordBreak: 'break-word' }}>
                     <thead>
                       <tr>
-                        <th style={{ minWidth: 180 }}>Item</th>
-                        <th style={{ width: 90 }}>SKU</th>
+                        <th style={{ width: 'auto' }}>Item & Variations</th>
+                        <th style={{ width: 110 }}>SKU</th>
                         <SortTh label="Stock" field="quantity_available" {...sp} style={{ width: 64 }} />
                         <SortTh label="Price" field="price" {...sp} style={{ width: 80 }} />
                         <SortTh label="Cost" field="cost_price" {...sp} style={{ width: 80 }} />
@@ -431,45 +443,54 @@ export function InventoryPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredItems.map(item => {
-                        const m = margin(item)
-                        const qty = item.quantity_available
-                        const price = item.display_price || item.price
-                        return (
-                          <tr key={item.id} onClick={() => openDetail(item)}>
-                            <td>
+                      {groupedItems.map((group) => (
+                        <React.Fragment key={group.item_id || group.title}>
+                          {/* Parent Group Header Row */}
+                          <tr style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--border)' }}>
+                            <td colSpan="9">
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                {item.image_url
-                                  ? <img src={item.image_url} alt="" style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 5, flexShrink: 0, border: '1px solid var(--border)' }} onError={e => e.target.style.display='none'} />
-                                  : <div style={{ width: 28, height: 28, background: 'var(--bg-card2)', borderRadius: 5, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>📦</div>
+                                {group.image_url 
+                                  ? <img src={group.image_url} alt="" style={{ width: 24, height: 24, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--border)' }} onError={e => e.target.style.display='none'} />
+                                  : <div style={{ width: 24, height: 24, background: 'var(--bg-card2)', borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}>📦</div>
                                 }
-                                <div style={{ minWidth: 0 }}>
-                                  <div style={{ fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>{item.title || item.custom_label || '(No title)'}</div>
-                                  <div className="mono" style={{ fontSize: 10, color: 'var(--text-muted)' }}>#{item.item_id}</div>
-                                </div>
+                                <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--text)' }}>{group.title || '(No title)'}</span>
+                                <span className="mono" style={{ fontSize: 10, color: 'var(--text-muted)' }}>#{group.item_id}</span>
                               </div>
                             </td>
-                            <td>
-                              <span className="mono" style={{ fontSize: 10, background: 'var(--bg-card2)', padding: '2px 6px', borderRadius: 4, color: 'var(--accent)', whiteSpace: 'nowrap', display: 'inline-block', maxWidth: 86, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {item.sku || item.custom_label || '—'}
-                              </span>
-                            </td>
-                            <td className="mono" style={{ fontWeight: 600, fontSize: 12, color: qty === 0 ? 'var(--red)' : qty !== null && qty < 5 ? 'var(--accent)' : 'var(--green)' }}>
-                              {qty !== null && qty !== undefined ? qty : '—'}
-                            </td>
-                            <td className="mono" style={{ fontSize: 12 }}>{price ? formatCurrency(price, currency) : '—'}</td>
-                            <td className="mono" style={{ fontSize: 11, color: 'var(--text-dim)' }}>{item.cost_price ? formatCurrency(item.cost_price, currency) : '—'}</td>
-                            <td>{m != null ? <span className={`badge badge-${parseFloat(m) > 30 ? 'green' : parseFloat(m) > 0 ? 'yellow' : 'red'}`} style={{ fontSize: 10 }}>{m}%</span> : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>}</td>
-                            <td className="mono" style={{ fontSize: 12, color: item.sold_30d > 0 ? 'var(--text)' : 'var(--text-muted)' }}>{item.sold_30d || 0}</td>
-                            <td className="mono" style={{ fontSize: 12 }}>{item.revenue_30d ? formatCurrency(item.revenue_30d, currency) : '—'}</td>
-                            <td>{(() => {
-                              const isOutOfStock = item.quantity_available !== null && item.quantity_available !== undefined && item.quantity_available === 0
-                              if (isOutOfStock) return <span className="badge badge-red" style={{ fontSize: 10 }}>Inactive</span>
-                              return <span className="badge badge-green" style={{ fontSize: 10 }}>{item.listing_status || 'Active'}</span>
-                            })()}</td>
                           </tr>
-                        )
-                      })}
+                          {/* Child Variation / SKU Rows */}
+                          {group.skus.map((item) => {
+                            const m = margin(item)
+                            const qty = item.quantity_available
+                            const price = item.display_price || item.price
+                            return (
+                              <tr key={item.id} onClick={() => openDetail(item)} style={{ cursor: 'pointer' }}>
+                                <td style={{ paddingLeft: 42, fontSize: 12, color: 'var(--text-muted)' }}>
+                                  ↳ {item.custom_label ? 'Variation' : 'Base Item'}
+                                </td>
+                                <td>
+                                  <span className="mono" style={{ fontSize: 10, background: 'var(--bg-card2)', padding: '2px 6px', borderRadius: 4, color: 'var(--accent)', whiteSpace: 'nowrap', display: 'inline-block', maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {item.sku || item.custom_label || '—'}
+                                  </span>
+                                </td>
+                                <td className="mono" style={{ fontWeight: 600, fontSize: 12, color: qty === 0 ? 'var(--red)' : qty !== null && qty < 5 ? 'var(--accent)' : 'var(--green)' }}>
+                                  {qty !== null && qty !== undefined ? qty : '—'}
+                                </td>
+                                <td className="mono" style={{ fontSize: 12 }}>{price ? formatCurrency(price, currency) : '—'}</td>
+                                <td className="mono" style={{ fontSize: 11, color: 'var(--text-dim)' }}>{item.cost_price ? formatCurrency(item.cost_price, currency) : '—'}</td>
+                                <td>{m != null ? <span className={`badge badge-${parseFloat(m) > 30 ? 'green' : parseFloat(m) > 0 ? 'yellow' : 'red'}`} style={{ fontSize: 10 }}>{m}%</span> : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>}</td>
+                                <td className="mono" style={{ fontSize: 12, color: item.sold_30d > 0 ? 'var(--text)' : 'var(--text-muted)' }}>{item.sold_30d || 0}</td>
+                                <td className="mono" style={{ fontSize: 12 }}>{item.revenue_30d ? formatCurrency(item.revenue_30d, currency) : '—'}</td>
+                                <td>{(() => {
+                                  const isOutOfStock = item.quantity_available !== null && item.quantity_available !== undefined && item.quantity_available === 0
+                                  if (isOutOfStock) return <span className="badge badge-red" style={{ fontSize: 10 }}>Inactive</span>
+                                  return <span className="badge badge-green" style={{ fontSize: 10 }}>{item.listing_status || 'Active'}</span>
+                                })()}</td>
+                              </tr>
+                            )
+                          })}
+                        </React.Fragment>
+                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -487,7 +508,7 @@ export function InventoryPage() {
                 {selected.image_url && <img src={selected.image_url} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 7, border: '1px solid var(--border)', flexShrink: 0 }} onError={e => e.target.style.display='none'} />}
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selected.title || '(No title)'}</div>
-                  <div className="mono" style={{ fontSize: 10, color: 'var(--accent)' }}>{selected.item_id}</div>
+                  <div className="mono" style={{ fontSize: 10, color: 'var(--accent)' }}>{selected.item_id} {selected.sku ? ` - SKU: ${selected.sku}` : ''}</div>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
